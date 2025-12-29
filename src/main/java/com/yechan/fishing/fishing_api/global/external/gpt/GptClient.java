@@ -32,19 +32,29 @@ public class GptClient {
         this.objectMapper = objectMapper;
     }
 
-    public AnalysisResponse analyze (
+    public AnalysisResponse analyze(
+
+            
             MultipartFile image,
             GptWeatherContext weather
     ) {
+        String mime = image.getContentType() != null
+                ? image.getContentType()
+                : "image/jpeg";
+
+        String base64;
         try {
-            String mime = image.getContentType() != null
-                    ? image.getContentType()
-                    : "image/jpeg";
+            base64 = Base64.getEncoder().encodeToString(image.getBytes());
+        } catch (Exception e) {
+            throw new FishingException(ErrorCode.GPT_API_ERROR);
+        }
 
-            String base64 = Base64.getEncoder()
-                    .encodeToString(image.getBytes());
+        int maxRetry = 3;
 
-            String prompt = buildPrompt(weather);
+        for (int attempt = 1; attempt <= maxRetry; attempt++) {
+            boolean isRetry = attempt > 1;
+
+            String prompt = buildPrompt(weather, isRetry);
 
             GptRequest request = new GptRequest(
                     props.getModel(),
@@ -52,10 +62,7 @@ public class GptClient {
                             new GptRequest.Input(
                                     "user",
                                     List.of(
-                                            new GptRequest.TextContent(
-                                                    "input_text",
-                                                    prompt
-                                            ),
+                                            new GptRequest.TextContent("input_text", prompt),
                                             new GptRequest.ImageContent(
                                                     "input_image",
                                                     "data:" + mime + ";base64," + base64,
@@ -66,28 +73,58 @@ public class GptClient {
                     )
             );
 
-            GptResponse response = webClient.post()
-                    .uri("/responses")
-                    .bodyValue(request)
-                    .retrieve()
-                    .bodyToMono(GptResponse.class)
-                    .block();
+            try {
+                GptResponse response = webClient.post()
+                        .uri("/responses")
+                        .bodyValue(request)
+                        .retrieve()
+                        .bodyToMono(GptResponse.class)
+                        .block();
 
-            String json = extractJson(response.getOutputText());
-            return objectMapper.readValue(json, AnalysisResponse.class);
-        } catch (Exception e) {
-            throw new FishingException(ErrorCode.GPT_API_ERROR);
+                String raw = response.getOutputText();
+                String json = extractJson(raw);
+
+                // JSON 구조 검증
+                objectMapper.readTree(json);
+
+                return objectMapper.readValue(json, AnalysisResponse.class);
+
+            } catch (Exception e) {
+                if (attempt == maxRetry) {
+                    throw new FishingException(ErrorCode.GPT_API_ERROR);
+                }
+                // else: 다음 재시도
+            }
         }
+
+        // 이론상 도달 불가, 안전망
+        throw new FishingException(ErrorCode.GPT_API_ERROR);
     }
 
-    private String buildPrompt(GptWeatherContext w) {
-        return """
+    private String buildPrompt(GptWeatherContext w, boolean isRetry) {
+        String base = """
         당신은 20년차 낚시 고수(포인트 분석 전문가)입니다.
         사용자가 보낸 "사진"과 아래 "환경 정보"를 종합해서, 낚시 포인트를 추천해 주세요.
         
         [말투 규칙]
         - 반드시 존댓말로만 답변해 주세요.
         - 반말/명령조/비속어는 금지합니다.
+        
+        [좌표 안정화 규칙]
+        - x, y는 반드시 0.08 이상 0.92 이하 범위에서만 선택하세요.
+        - radius는 0.05 이상 0.18 이하로 제한하세요.
+        - 이미지의 가장자리(프레임, 하늘만 있는 영역, 물과 무관한 영역)는 피하세요.
+        - points는 실제 낚시 접근이 가능한 위치만 선택하세요.
+        
+        [활성도 판단 규칙]
+        - 현재 시각(timestamp)을 기준으로 아래를 고려하세요.
+        - sunrise 전후 ±1시간: 활성도 높음 (아침 피딩 타임)
+        - sunset 전후 ±1시간: 활성도 높음 (저녁 피딩 타임)
+        - 그 외 시간대:
+          - 흐림(cloudiness 높음) + 약한 바람: 중간 이상
+          - 맑음 + 바람 약함: 중간
+          - 바람 강함 + 수온 낮음: 낮음
+        - 이 판단을 summary와 strategy에 반드시 반영하세요.
         
         [출력 규칙]
         - 반드시 아래 JSON "객체" 하나만 출력해 주세요.
@@ -137,8 +174,27 @@ public class GptClient {
                 w.weatherMain(), w.weatherDesc(),
                 w.sunrise(), w.sunset()
         );
+
+        if (!isRetry) {
+            return base;
+        }
+
+        // 재시도 할때 추가할 프롬프트
+        return base + """
+                이전 응답이 JSON 형식이 아니었습니다.
+                이번에는 반드시 JSON 객체 하나만 출력하세요.
+                다른 텍스트는 절대 포함하지 마세요.
+                """;
     }
 
+    private boolean isValidJson(String json) {
+        try {
+            objectMapper.readValue(json, AnalysisResponse.class);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     private String extractJson(String s) {
         if (s == null) return "{}";
