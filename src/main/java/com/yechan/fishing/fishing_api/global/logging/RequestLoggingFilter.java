@@ -24,7 +24,7 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     ) throws ServletException, IOException {
 
         long start = System.currentTimeMillis();
-        String requestId = UUID.randomUUID().toString();
+        String requestId = UUID.randomUUID().toString().substring(0, 8);
 
         MDC.put("requestId", requestId);
 
