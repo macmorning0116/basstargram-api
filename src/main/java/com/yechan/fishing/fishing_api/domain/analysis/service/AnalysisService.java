@@ -28,14 +28,9 @@ public class AnalysisService {
             double lat,
             double lng
     ) {
-
-        log.info("Analysis started. lat={} lng={} imageSize={}KB",
-                lat, lng, image.getSize() / 1024);
-
         GptWeatherContext weather = weatherClient.getGptWeatherContext(lat, lng);
 
         AnalysisResponse response = gptClient.analyze(image, weather);
-        log.info("Analysis completed successfully.");
 
         return response;
     }
