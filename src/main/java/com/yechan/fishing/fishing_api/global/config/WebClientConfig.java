@@ -2,6 +2,7 @@ package com.yechan.fishing.fishing_api.global.config;
 
 import com.yechan.fishing.fishing_api.global.external.gpt.OpenAiProperties;
 import com.yechan.fishing.fishing_api.global.external.naver.NaverApiProperties;
+import com.yechan.fishing.fishing_api.global.external.opensearch.OpenSearchProperties;
 import com.yechan.fishing.fishing_api.global.external.weather.OpenWeatherApiProperties;
 import com.yechan.fishing.fishing_api.global.logging.WebClientLoggingFilter;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -13,7 +14,8 @@ import org.springframework.web.reactive.function.client.WebClient;
 @EnableConfigurationProperties({
         NaverApiProperties.class,
         OpenWeatherApiProperties.class,
-        OpenAiProperties.class
+        OpenAiProperties.class,
+        OpenSearchProperties.class
 })
 public class WebClientConfig {
 
@@ -43,6 +45,15 @@ public class WebClientConfig {
                 .defaultHeader("Authorization", "Bearer " + props.getApiKey())
                 .defaultHeader("Content-Type", "application/json")
                 .filter(webClientLoggingFilter.externalApiLoggingFilter("openAi"))
+                .build();
+    }
+
+    @Bean(name = "openSearchWebClient")
+    public WebClient openSearchWebClient(OpenSearchProperties props, WebClientLoggingFilter webClientLoggingFilter) {
+        return WebClient.builder()
+                .baseUrl(props.getBaseUrl())
+                .defaultHeader("Content-Type", "application/json")
+                .filter(webClientLoggingFilter.externalApiLoggingFilter("openSearch"))
                 .build();
     }
 
