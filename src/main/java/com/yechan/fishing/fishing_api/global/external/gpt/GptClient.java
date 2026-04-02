@@ -146,8 +146,8 @@ public class GptClient {
                         [OUTPUT LENGTH — MUST BE SHORT]
                         - summary: max 2 sentences, total <= 220 characters.
                         - each reason: max 2 sentences, <= 180 characters.
-                        - tackle: use the REQUIRED template below, <= 380 characters.
-                        - strategy: use the REQUIRED template below, max 4 lines, <= 420 characters.
+                        - tackle: use the REQUIRED format below, <= 380 characters.
+                        - strategy: use the REQUIRED format below, max 4 lines, <= 420 characters.
                         - Do NOT add extra explanations.
                         
                         ────────────────────────────────────────
@@ -155,13 +155,16 @@ public class GptClient {
                         - Coordinates are normalized: top-left (0,0), bottom-right (1,1).
                         - x,y must be within [0.08, 0.92].
                         - radius must be within [0.05, 0.18].
-                        - points MUST be EXACTLY 2.
+                        - points can contain 0, 1, or 2 items.
+                        - Return 0 points if fishable water is not clearly visible.
                         
                         [WATER-ONLY RULE — HIGHEST PRIORITY]
                         - Each point center (x,y) MUST be ON WATER surface.
                         - NEVER place the center on sky/land/trees/rocks/decks/roads/boats/buildings/shadows.
                         - Avoid regions above the horizon line if visible.
                         - Prefer water cues: ripples, reflections, specular highlights, continuous water texture.
+                        - If water surface is too small, too dark, too blurry, blocked, or visually ambiguous, return an empty points array.
+                        - It is better to return no points than to place a wrong point on land or non-water.
                         
                         [INTERNAL VALIDATION LOOP]
                         For EACH point, internally verify:
@@ -169,36 +172,54 @@ public class GptClient {
                         2) nearby texture also looks like water (ripples/reflection)
                         3) not near frame/UI/text/edge
                         If any fails, move the point and recheck.
+                        If all candidate points fail, return an empty points array.
                         
                         ────────────────────────────────────────
-                        [TACKLE TEMPLATE — MUST FOLLOW EXACTLY]
-                        Write tackle as ONE line in this exact format:
-                        "대상어: (주)/(부) | 소프트: (웜형태)(인치) (리그) 훅(사이즈) 싱커/헤드(g) | 하드/메탈: (종류)(크기/무게) (액션/잠행) | 라인/로드: (라인종류)(lb) (로드파워)(길이)"
+                        [TACKLE FORMAT — BEGINNER FRIENDLY]
+                        Write tackle as 2~3 short lines with easy Korean labels:
+                        "대상어: ..."
+                        "추천 채비: ..."
+                        "라인과 로드: ..."
                         
                         Rules:
                         - Worm type must be explicit (스트레이트/패들테일/크리처/호그/그럽 중 선택)
                         - Rig must be explicit (네꼬/다운샷/텍사스/지그헤드/노싱커 중 선택)
                         - Must include numeric sizes (inches, g, mm or g, lb)
                         - No vague words like "적당히", "작게", "상황 봐서", "야광미끼"
+                        - Explain simply enough that a beginner can follow immediately.
+                        - If points is empty, tackle MUST NOT recommend an actual lure or rig.
+                        - If points is empty, tackle should be plain Korean guidance text only.
+                        - If points is empty, do NOT use labels like "대상어:", "추천 채비:", "라인과 로드:".
+                        - If points is empty, briefly explain that tackle recommendation is difficult from the current photo and guide the user to retake the photo with clear water surface.
                         
-                        [STRATEGY TEMPLATE — MUST FOLLOW]
-                        Write strategy as 3~4 lines, each starting with "①②③④":
-                        ① 포인트1: (캐스팅 방향/각도) + (수심층) + (리트리브/스테이 초)
-                        ② 포인트1 보정: (반응 없을 때 루어/리그 교체 1개만)
-                        ③ 포인트2: (공략 라인) + (동작) + (스테이 초)
-                        ④ 마무리: (입질 거리/수심 고정 방법 1문장)
+                        [STRATEGY FORMAT — BEGINNER FRIENDLY]
+                        - Write strategy as 2~4 short lines using natural Korean labels.
+                        - Preferred labels:
+                          "먼저: ..."
+                          "다음: ..."
+                          "반응이 없으면: ..."
+                          "주의할 점: ..."
+                        - Avoid numbered bullets like ①②③④.
+                        - Each line must be concrete and easy to follow for beginners.
+                        - If points is empty, strategy MUST explain that the current photo does not show clear fishable water and briefly guide the user to retake the photo.
+                        - If points is empty, strategy should be plain Korean guidance text only.
+                        - If points is empty, do NOT use labels like "먼저:", "다음:", "반응이 없으면:", "주의할 점:".
+                        - If points is empty, focus only on practical retake guidance such as showing water surface, shoreline boundary, and nearby structure.
+                        - If points is empty, avoid overdone safety instructions unless directly visible in the photo.
                         
                         ────────────────────────────────────────
                         [JSON SCHEMA]
                         {
                           "summary": string,
                           "points": [
-                            { "x": number, "y": number, "radius": number, "reason": string },
                             { "x": number, "y": number, "radius": number, "reason": string }
                           ],
                           "tackle": string,
                           "strategy": string
                         }
+                        - points may be [] when no valid water-only point exists.
+                        - If points is not empty, include at most 2 items.
+                        - If points is empty, summary/tackle/strategy must not pretend that a valid spot was found.
                         
                         [ENVIRONMENT DATA]
                         - lat: %.6f
