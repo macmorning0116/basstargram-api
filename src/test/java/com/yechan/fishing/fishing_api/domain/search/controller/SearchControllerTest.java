@@ -9,6 +9,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.argThat;
@@ -51,6 +52,8 @@ class SearchControllerTest {
         given(searchService.searchPosts(argThat(request ->
                 "bass".equals(request.q())
                         && "bass_walking".equals(request.boardKey())
+                        && LocalDate.of(2026, 3, 28).equals(request.fromDate())
+                        && LocalDate.of(2026, 4, 1).equals(request.untilDate())
                         && request.cursor() == null
                         && Integer.valueOf(20).equals(request.size())
         ))).willReturn(response);
@@ -58,6 +61,8 @@ class SearchControllerTest {
         mockMvc.perform(get("/v1/search/posts")
                         .param("q", "bass")
                         .param("boardKey", "bass_walking")
+                        .param("fromDate", "2026-03-28")
+                        .param("untilDate", "2026-04-01")
                         .param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))

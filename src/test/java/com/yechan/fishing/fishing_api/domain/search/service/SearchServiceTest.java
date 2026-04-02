@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 import java.util.Base64;
 import java.util.List;
 
@@ -99,7 +100,14 @@ class SearchServiceTest {
                 """));
 
         SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest("bass", "bass_walking", null, 2)
+                new SearchPostsRequest(
+                        "bass",
+                        "bass_walking",
+                        LocalDate.of(2026, 3, 28),
+                        LocalDate.of(2026, 4, 1),
+                        null,
+                        2
+                )
         );
 
         assertEquals(2, response.items().size());
@@ -118,6 +126,8 @@ class SearchServiceTest {
         assertEquals(2, body.path("size").asInt());
         assertEquals("bass", body.path("query").path("bool").path("must").get(0).path("multi_match").path("query").asText());
         assertEquals("bass_walking", body.path("query").path("bool").path("filter").get(1).path("term").path("board_key").asText());
+        assertEquals("2026-03-28", body.path("query").path("bool").path("filter").get(2).path("range").path("published_at").path("gte").asText());
+        assertEquals("2026-04-01", body.path("query").path("bool").path("filter").get(2).path("range").path("published_at").path("lte").asText());
         assertEquals("published_at", body.path("sort").get(0).fieldNames().next());
     }
 
@@ -151,7 +161,7 @@ class SearchServiceTest {
                 .encodeToString("[\"2026-04-01\",\"469820\"]".getBytes(StandardCharsets.UTF_8));
 
         SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest(null, null, cursor, 10)
+                new SearchPostsRequest(null, null, null, null, cursor, 10)
         );
 
         assertEquals(1, response.items().size());
@@ -174,7 +184,7 @@ class SearchServiceTest {
         server.enqueue(new MockResponse().setResponseCode(200).setBody(""));
 
         SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest(null, null, "not-a-valid-cursor", null)
+                new SearchPostsRequest(null, null, null, null, "not-a-valid-cursor", null)
         );
 
         assertTrue(response.items().isEmpty());
