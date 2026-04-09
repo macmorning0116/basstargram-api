@@ -20,12 +20,16 @@ import jakarta.persistence.Table;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
 @Table(name = "community_posts")
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommunityPost {
 
@@ -107,4 +111,26 @@ public class CommunityPost {
 
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+
+  public void incrementLikeCount() {
+    likeCount = likeCount + 1;
+  }
+
+  public void decrementLikeCount() {
+    likeCount = Math.max(0, likeCount - 1);
+  }
+
+  public void incrementCommentCount() {
+    commentCount = commentCount + 1;
+  }
+
+  public void incrementReportCount() {
+    reportCount = reportCount + 1;
+  }
+
+  public void hide(VisibilityReason reason, LocalDateTime now) {
+    visibilityStatus = VisibilityStatus.HIDDEN;
+    visibilityReason = reason;
+    hiddenAt = now;
+  }
 }

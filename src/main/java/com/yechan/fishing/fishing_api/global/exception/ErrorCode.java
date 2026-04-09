@@ -5,6 +5,7 @@ public enum ErrorCode {
   // 공용
   INVALID_COORD("INVALID_COORD", "위도/경도가 올바르지 않습니다."),
   INTERNAL_SERVER_ERROR("INTERNAL_SERVER_ERROR", "서버 오류가 발생했습니다."),
+  USER_NOT_FOUND("USER_NOT_FOUND", "사용자를 찾을 수 없습니다."),
 
   // 네이버
   NAVER_API_ERROR("NAVER_API_ERROR", "주소 변환에 실패했습니다."),
@@ -16,6 +17,11 @@ public enum ErrorCode {
   // GPT
   GPT_API_ERROR("GPT_API_ERROR", "GPT 응답을 불러오는 중 에러가 발생했습니다."),
   GPT_RESPONSE_PARSE_ERROR("GPT_RESPONSE_PARSE_ERROR", "GPT 응답을 파싱하는 과정에서 에러가 발생했습니다."),
+  COMMUNITY_POST_NOT_FOUND("COMMUNITY_POST_NOT_FOUND", "게시글을 찾을 수 없습니다."),
+  COMMUNITY_COMMENT_NOT_FOUND("COMMUNITY_COMMENT_NOT_FOUND", "댓글을 찾을 수 없습니다."),
+  COMMUNITY_REPORT_DUPLICATE("COMMUNITY_REPORT_DUPLICATE", "이미 신고한 대상입니다."),
+  COMMUNITY_INVALID_PARENT_COMMENT(
+      "COMMUNITY_INVALID_PARENT_COMMENT", "다른 게시글의 댓글에는 답글을 작성할 수 없습니다."),
   ;
 
   private final String code;

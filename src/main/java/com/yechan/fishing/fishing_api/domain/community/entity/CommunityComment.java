@@ -16,12 +16,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @Entity
 @Table(name = "community_comments")
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommunityComment {
 
@@ -73,4 +77,14 @@ public class CommunityComment {
 
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+
+  public void incrementReportCount() {
+    reportCount = reportCount + 1;
+  }
+
+  public void hide(VisibilityReason reason, LocalDateTime now) {
+    visibilityStatus = VisibilityStatus.HIDDEN;
+    visibilityReason = reason;
+    hiddenAt = now;
+  }
 }

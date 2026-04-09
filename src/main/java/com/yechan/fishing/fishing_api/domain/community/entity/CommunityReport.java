@@ -18,6 +18,8 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -30,6 +32,8 @@ import lombok.NoArgsConstructor;
           name = "uq_reports_reporter_target",
           columnNames = {"reporter_user_id", "target_type", "target_id"})
     })
+@Builder
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 public class CommunityReport {
 

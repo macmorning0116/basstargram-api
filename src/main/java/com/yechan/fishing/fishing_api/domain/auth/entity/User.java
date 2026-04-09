@@ -71,4 +71,8 @@ public class User {
 
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+
+  public void incrementReportCount() {
+    reportCount = reportCount + 1;
+  }
 }
