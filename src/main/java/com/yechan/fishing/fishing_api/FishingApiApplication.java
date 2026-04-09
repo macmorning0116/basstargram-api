@@ -6,8 +6,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class FishingApiApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(FishingApiApplication.class, args);
-	}
-
+  public static void main(String[] args) {
+    SpringApplication.run(FishingApiApplication.class, args);
+  }
 }

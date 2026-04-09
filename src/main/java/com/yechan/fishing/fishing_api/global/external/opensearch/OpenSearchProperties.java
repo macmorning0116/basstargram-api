@@ -5,22 +5,22 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "opensearch")
 public class OpenSearchProperties {
 
-    private String baseUrl;
-    private String indexName;
+  private String baseUrl;
+  private String indexName;
 
-    public String getBaseUrl() {
-        return baseUrl;
-    }
+  public String getBaseUrl() {
+    return baseUrl;
+  }
 
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
+  public void setBaseUrl(String baseUrl) {
+    this.baseUrl = baseUrl;
+  }
 
-    public String getIndexName() {
-        return indexName;
-    }
+  public String getIndexName() {
+    return indexName;
+  }
 
-    public void setIndexName(String indexName) {
-        this.indexName = indexName;
-    }
+  public void setIndexName(String indexName) {
+    this.indexName = indexName;
+  }
 }

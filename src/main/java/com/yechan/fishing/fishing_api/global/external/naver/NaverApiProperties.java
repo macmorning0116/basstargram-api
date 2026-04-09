@@ -5,31 +5,31 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "naver.api")
 public class NaverApiProperties {
 
-    private String baseUrl;
-    private String keyId;
-    private String key;
+  private String baseUrl;
+  private String keyId;
+  private String key;
 
-    public String getBaseUrl() {
-        return baseUrl;
-    }
+  public String getBaseUrl() {
+    return baseUrl;
+  }
 
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
+  public void setBaseUrl(String baseUrl) {
+    this.baseUrl = baseUrl;
+  }
 
-    public String getKeyId() {
-        return keyId;
-    }
+  public String getKeyId() {
+    return keyId;
+  }
 
-    public void setKeyId(String keyId) {
-        this.keyId = keyId;
-    }
+  public void setKeyId(String keyId) {
+    this.keyId = keyId;
+  }
 
-    public String getKey() {
-        return key;
-    }
+  public String getKey() {
+    return key;
+  }
 
-    public void setKey(String key) {
-        this.key = key;
-    }
+  public void setKey(String key) {
+    this.key = key;
+  }
 }

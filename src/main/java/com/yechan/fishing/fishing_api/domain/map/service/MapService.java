@@ -10,20 +10,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class MapService {
 
-    private final NaverReverseGeocodeClient naverClient;
+  private final NaverReverseGeocodeClient naverClient;
 
-    public MapService(NaverReverseGeocodeClient naverClient) {
-        this.naverClient = naverClient;
-    }
+  public MapService(NaverReverseGeocodeClient naverClient) {
+    this.naverClient = naverClient;
+  }
 
-    public ReverseGeocodeResponse getAddress(double lat, double lng) {
+  public ReverseGeocodeResponse getAddress(double lat, double lng) {
 
-        NaverAddress address = naverClient.reverseGeocode(lat, lng);
+    NaverAddress address = naverClient.reverseGeocode(lat, lng);
 
-        return new ReverseGeocodeResponse(
-                address.sido(),
-                address.sigungu(),
-                address.dong()
-        );
-    }
+    return new ReverseGeocodeResponse(address.sido(), address.sigungu(), address.dong());
+  }
 }
