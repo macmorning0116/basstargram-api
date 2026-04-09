@@ -25,6 +25,7 @@ public enum ErrorCode {
   COMMUNITY_IMAGE_COUNT_EXCEEDED("COMMUNITY_IMAGE_COUNT_EXCEEDED", "이미지는 최대 5장까지 업로드할 수 있습니다."),
   COMMUNITY_INVALID_IMAGE_FILE("COMMUNITY_INVALID_IMAGE_FILE", "이미지 파일만 업로드할 수 있습니다."),
   COMMUNITY_IMAGE_UPLOAD_ERROR("COMMUNITY_IMAGE_UPLOAD_ERROR", "이미지를 저장하는 중 에러가 발생했습니다."),
+  COMMUNITY_IMAGE_METADATA_ERROR("COMMUNITY_IMAGE_METADATA_ERROR", "이미지 메타데이터를 읽는 중 에러가 발생했습니다."),
   ;
 
   private final String code;
