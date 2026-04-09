@@ -3,6 +3,7 @@ package com.yechan.fishing.fishing_api.domain.community.controller;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentItem;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityLikeRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityLikeResponse;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDefaultsResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDetailResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostsRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostsResponse;
@@ -10,6 +11,7 @@ import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportReques
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityCommentRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityPostRequest;
+import com.yechan.fishing.fishing_api.domain.community.service.CommunityPostDefaultsService;
 import com.yechan.fishing.fishing_api.domain.community.service.CommunityService;
 import com.yechan.fishing.fishing_api.global.response.ApiResponse;
 import jakarta.validation.Valid;
@@ -33,9 +35,13 @@ import org.springframework.web.multipart.MultipartFile;
 public class CommunityController {
 
   private final CommunityService communityService;
+  private final CommunityPostDefaultsService communityPostDefaultsService;
 
-  public CommunityController(CommunityService communityService) {
+  public CommunityController(
+      CommunityService communityService,
+      CommunityPostDefaultsService communityPostDefaultsService) {
     this.communityService = communityService;
+    this.communityPostDefaultsService = communityPostDefaultsService;
   }
 
   @GetMapping("/posts")
@@ -47,6 +53,12 @@ public class CommunityController {
   public ApiResponse<CommunityPostDetailResponse> getPost(
       @PathVariable Long postId, @RequestParam(required = false) Long viewerUserId) {
     return ApiResponse.success(communityService.getPost(postId, viewerUserId));
+  }
+
+  @PostMapping(value = "/posts/defaults", consumes = "multipart/form-data")
+  public ApiResponse<CommunityPostDefaultsResponse> getPostDefaults(
+      @RequestPart("image") MultipartFile image) {
+    return ApiResponse.success(communityPostDefaultsService.extractDefaults(image));
   }
 
   @PostMapping(value = "/posts", consumes = "multipart/form-data")
