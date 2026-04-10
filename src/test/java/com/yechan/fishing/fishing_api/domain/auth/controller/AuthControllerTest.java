@@ -2,6 +2,7 @@ package com.yechan.fishing.fishing_api.domain.auth.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -9,8 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthUserResponse;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
 import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.SocialLoginRequest;
+import com.yechan.fishing.fishing_api.domain.auth.dto.SocialAuthorizationUrlResponse;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.UserRole;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.UserStatus;
@@ -33,9 +35,9 @@ class AuthControllerTest {
   @MockBean private AuthService authService;
 
   @Test
-  void socialLogin_returnsWrappedSuccessResponse() throws Exception {
-    SocialLoginRequest request =
-        new SocialLoginRequest(AuthProvider.KAKAO, "provider-token", "iPhone");
+  void loginWithAuthorizationCode_returnsWrappedSuccessResponse() throws Exception {
+    AuthorizationCodeLoginRequest request =
+        new AuthorizationCodeLoginRequest("auth-code", "signed-state", "iPhone");
     AuthTokenResponse response =
         new AuthTokenResponse(
             "access-token",
@@ -44,11 +46,11 @@ class AuthControllerTest {
             LocalDateTime.of(2026, 4, 24, 17, 0),
             new AuthUserResponse(1L, "앵글러", "https://image", UserRole.USER, UserStatus.ACTIVE));
 
-    given(authService.socialLogin(any(), any())).willReturn(response);
+    given(authService.loginWithAuthorizationCode(any(), any(), any())).willReturn(response);
 
     mockMvc
         .perform(
-            post("/v1/auth/social/login")
+            post("/v1/auth/kakao/code")
                 .header("User-Agent", "ios")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(request)))
@@ -57,6 +59,24 @@ class AuthControllerTest {
         .andExpect(jsonPath("$.data.accessToken").value("access-token"))
         .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
         .andExpect(jsonPath("$.data.user.nickname").value("앵글러"));
+  }
+
+  @Test
+  void getAuthorizationUrl_returnsGetResponse() throws Exception {
+    SocialAuthorizationUrlResponse response =
+        new SocialAuthorizationUrlResponse(
+            "https://provider.example.com/oauth/authorize?state=signed-state", "signed-state");
+
+    given(authService.getAuthorizationUrl(AuthProvider.GOOGLE)).willReturn(response);
+
+    mockMvc
+        .perform(get("/v1/auth/google/authorize-url"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(
+            jsonPath("$.data.authorizationUrl")
+                .value("https://provider.example.com/oauth/authorize?state=signed-state"))
+        .andExpect(jsonPath("$.data.state").value("signed-state"));
   }
 
   @Test

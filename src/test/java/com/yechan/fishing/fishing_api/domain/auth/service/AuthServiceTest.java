@@ -10,8 +10,8 @@ import static org.mockito.BDDMockito.then;
 import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfo;
 import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfoClient;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
 import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.SocialLoginRequest;
 import com.yechan.fishing.fishing_api.domain.auth.entity.User;
 import com.yechan.fishing.fishing_api.domain.auth.entity.UserRefreshToken;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
@@ -44,13 +44,13 @@ class AuthServiceTest {
   @Mock private SocialUserInfoClient kakaoClient;
 
   @Test
-  void socialLogin_whenNewUser_createsUserAndIssuesTokens() {
+  void loginWithAuthorizationCode_whenNewUser_createsUserAndIssuesTokens() {
     given(kakaoClient.provider()).willReturn(AuthProvider.KAKAO);
     AuthService service =
         new AuthService(
             userRepository, userRefreshTokenRepository, jwtTokenProvider, List.of(kakaoClient));
-    SocialLoginRequest request =
-        new SocialLoginRequest(AuthProvider.KAKAO, "provider-token", "iPhone");
+    AuthorizationCodeLoginRequest request =
+        new AuthorizationCodeLoginRequest("auth-code", "signed-state", "iPhone");
     SocialUserInfo socialUserInfo =
         new SocialUserInfo("provider-user-1", "angler@example.com", "앵글러", "https://image");
     IssuedTokens issuedTokens =
@@ -60,7 +60,11 @@ class AuthServiceTest {
             LocalDateTime.of(2026, 4, 10, 17, 0),
             LocalDateTime.of(2026, 4, 24, 17, 0));
 
+    given(kakaoClient.exchangeCode("auth-code")).willReturn("provider-token");
     given(kakaoClient.getUserInfo("provider-token")).willReturn(socialUserInfo);
+    org.mockito.BDDMockito.willDoNothing()
+        .given(jwtTokenProvider)
+        .validateOAuthState(AuthProvider.KAKAO, "signed-state");
     given(userRepository.findByProviderAndProviderUserId(AuthProvider.KAKAO, "provider-user-1"))
         .willReturn(Optional.empty());
     given(userRepository.save(any(User.class)))
@@ -72,13 +76,33 @@ class AuthServiceTest {
             });
     given(jwtTokenProvider.issueTokens(any(User.class))).willReturn(issuedTokens);
 
-    AuthTokenResponse response = service.socialLogin(request, "ios-user-agent");
+    AuthTokenResponse response =
+        service.loginWithAuthorizationCode(AuthProvider.KAKAO, request, "ios-user-agent");
 
     assertEquals("access-token", response.accessToken());
     assertEquals("refresh-token", response.refreshToken());
     assertEquals(1L, response.user().id());
     assertEquals("앵글러", response.user().nickname());
     then(userRefreshTokenRepository).should().save(any(UserRefreshToken.class));
+  }
+
+  @Test
+  void getAuthorizationUrl_returnsSignedStateAndAuthorizationUrl() {
+    given(kakaoClient.provider()).willReturn(AuthProvider.KAKAO);
+    given(jwtTokenProvider.issueOAuthState(AuthProvider.KAKAO)).willReturn("signed-state");
+    given(kakaoClient.buildAuthorizationUrl("signed-state"))
+        .willReturn("https://provider.example.com/oauth/authorize?state=signed-state");
+
+    AuthService service =
+        new AuthService(
+            userRepository, userRefreshTokenRepository, jwtTokenProvider, List.of(kakaoClient));
+
+    var response = service.getAuthorizationUrl(AuthProvider.KAKAO);
+
+    assertEquals("signed-state", response.state());
+    assertEquals(
+        "https://provider.example.com/oauth/authorize?state=signed-state",
+        response.authorizationUrl());
   }
 
   @Test

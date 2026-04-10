@@ -4,8 +4,9 @@ import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfo;
 import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfoClient;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthUserResponse;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
 import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.SocialLoginRequest;
+import com.yechan.fishing.fishing_api.domain.auth.dto.SocialAuthorizationUrlResponse;
 import com.yechan.fishing.fishing_api.domain.auth.entity.User;
 import com.yechan.fishing.fishing_api.domain.auth.entity.UserRefreshToken;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
@@ -47,20 +48,30 @@ public class AuthService {
                     SocialUserInfoClient::provider, Function.identity()));
   }
 
+  public SocialAuthorizationUrlResponse getAuthorizationUrl(AuthProvider provider) {
+    SocialUserInfoClient client = getClient(provider);
+    String state = jwtTokenProvider.issueOAuthState(provider);
+    return new SocialAuthorizationUrlResponse(client.buildAuthorizationUrl(state), state);
+  }
+
   @Transactional
-  public AuthTokenResponse socialLogin(SocialLoginRequest request, String userAgent) {
-    SocialUserInfoClient client = getClient(request.provider());
-    SocialUserInfo socialUserInfo = client.getUserInfo(request.accessToken());
+  public AuthTokenResponse loginWithAuthorizationCode(
+      AuthProvider provider, AuthorizationCodeLoginRequest request, String userAgent) {
+    jwtTokenProvider.validateOAuthState(provider, request.state());
+
+    SocialUserInfoClient client = getClient(provider);
+    String providerAccessToken = client.exchangeCode(request.code());
+    SocialUserInfo socialUserInfo = client.getUserInfo(providerAccessToken);
     LocalDateTime now = LocalDateTime.now();
 
     User user =
         userRepository
-            .findByProviderAndProviderUserId(request.provider(), socialUserInfo.providerUserId())
+            .findByProviderAndProviderUserId(provider, socialUserInfo.providerUserId())
             .map(
                 existingUser -> {
                   existingUser.updateSocialProfile(
                       socialUserInfo.email(),
-                      resolveNickname(request.provider(), socialUserInfo),
+                      resolveNickname(provider, socialUserInfo),
                       socialUserInfo.profileImageUrl(),
                       now);
                   return existingUser;
@@ -68,10 +79,10 @@ public class AuthService {
             .orElseGet(
                 () ->
                     User.create(
-                        request.provider(),
+                        provider,
                         socialUserInfo.providerUserId(),
                         socialUserInfo.email(),
-                        resolveNickname(request.provider(), socialUserInfo),
+                        resolveNickname(provider, socialUserInfo),
                         socialUserInfo.profileImageUrl(),
                         now));
 

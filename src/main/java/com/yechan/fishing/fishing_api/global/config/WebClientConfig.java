@@ -69,7 +69,6 @@ public class WebClientConfig {
   public WebClient kakaoAuthWebClient(
       KakaoApiProperties props, WebClientLoggingFilter webClientLoggingFilter) {
     return WebClient.builder()
-        .baseUrl(props.getUserInfoBaseUrl())
         .filter(webClientLoggingFilter.externalApiLoggingFilter("kakaoAuth"))
         .build();
   }
@@ -78,7 +77,6 @@ public class WebClientConfig {
   public WebClient googleAuthWebClient(
       GoogleApiProperties props, WebClientLoggingFilter webClientLoggingFilter) {
     return WebClient.builder()
-        .baseUrl(props.getUserInfoBaseUrl())
         .filter(webClientLoggingFilter.externalApiLoggingFilter("googleAuth"))
         .build();
   }

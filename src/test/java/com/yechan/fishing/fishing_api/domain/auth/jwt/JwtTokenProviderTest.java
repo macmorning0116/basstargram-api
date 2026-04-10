@@ -57,4 +57,20 @@ class JwtTokenProviderTest {
     assertEquals(AuthProvider.GOOGLE, payload.provider());
     assertEquals(issuedTokens.accessTokenExpiresAt().withNano(0), payload.expiresAt().withNano(0));
   }
+
+  @Test
+  void issueOAuthState_andValidate_succeedsForSameProvider() {
+    JwtProperties properties = new JwtProperties();
+    properties.setIssuer("fishing-api");
+    properties.setSecret("dev-secret-key-change-me-dev-secret-key-change-me");
+    properties.setAccessTokenExpirationSeconds(1800);
+    properties.setRefreshTokenExpirationSeconds(1209600);
+
+    JwtTokenProvider jwtTokenProvider = new JwtTokenProvider(properties);
+    String state = jwtTokenProvider.issueOAuthState(AuthProvider.KAKAO);
+
+    jwtTokenProvider.validateOAuthState(AuthProvider.KAKAO, state);
+
+    assertNotNull(state);
+  }
 }

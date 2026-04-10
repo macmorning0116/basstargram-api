@@ -22,9 +22,11 @@ public class JwtTokenProvider {
   private static final String TOKEN_TYPE_CLAIM = "tokenType";
   private static final String ACCESS_TOKEN_TYPE = "access";
   private static final String REFRESH_TOKEN_TYPE = "refresh";
+  private static final String OAUTH_STATE_TOKEN_TYPE = "oauth_state";
   private static final String USER_ID_CLAIM = "userId";
   private static final String ROLE_CLAIM = "role";
   private static final String PROVIDER_CLAIM = "provider";
+  private static final long OAUTH_STATE_EXPIRATION_SECONDS = 300L;
 
   private final JwtProperties properties;
   private final Key signingKey;
@@ -81,6 +83,37 @@ public class JwtTokenProvider {
 
     return new RefreshTokenPayload(
         userId, LocalDateTime.ofInstant(expiration.toInstant(), ZoneId.systemDefault()));
+  }
+
+  public String issueOAuthState(AuthProvider provider) {
+    LocalDateTime now = LocalDateTime.now();
+    LocalDateTime expiresAt = now.plusSeconds(OAUTH_STATE_EXPIRATION_SECONDS);
+
+    return Jwts.builder()
+        .issuer(properties.getIssuer())
+        .claim(PROVIDER_CLAIM, provider.name())
+        .claim(TOKEN_TYPE_CLAIM, OAUTH_STATE_TOKEN_TYPE)
+        .issuedAt(toDate(now))
+        .expiration(toDate(expiresAt))
+        .signWith(signingKey)
+        .compact();
+  }
+
+  public void validateOAuthState(AuthProvider provider, String state) {
+    Claims claims = parseClaims(state, ErrorCode.AUTH_INVALID_OAUTH_STATE).getPayload();
+    String tokenType = claims.get(TOKEN_TYPE_CLAIM, String.class);
+    String providerValue = claims.get(PROVIDER_CLAIM, String.class);
+    if (!OAUTH_STATE_TOKEN_TYPE.equals(tokenType) || providerValue == null) {
+      throw new FishingException(ErrorCode.AUTH_INVALID_OAUTH_STATE);
+    }
+
+    try {
+      if (AuthProvider.valueOf(providerValue) != provider) {
+        throw new FishingException(ErrorCode.AUTH_INVALID_OAUTH_STATE);
+      }
+    } catch (IllegalArgumentException e) {
+      throw new FishingException(ErrorCode.AUTH_INVALID_OAUTH_STATE);
+    }
   }
 
   public AccessTokenPayload parseAccessToken(String accessToken) {
