@@ -1,0 +1,171 @@
+package com.yechan.fishing.fishing_api.domain.auth.service;
+
+import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfo;
+import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfoClient;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthUserResponse;
+import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
+import com.yechan.fishing.fishing_api.domain.auth.dto.SocialLoginRequest;
+import com.yechan.fishing.fishing_api.domain.auth.entity.User;
+import com.yechan.fishing.fishing_api.domain.auth.entity.UserRefreshToken;
+import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
+import com.yechan.fishing.fishing_api.domain.auth.entity.enums.UserStatus;
+import com.yechan.fishing.fishing_api.domain.auth.jwt.IssuedTokens;
+import com.yechan.fishing.fishing_api.domain.auth.jwt.JwtTokenProvider;
+import com.yechan.fishing.fishing_api.domain.auth.jwt.RefreshTokenPayload;
+import com.yechan.fishing.fishing_api.domain.auth.repository.UserRefreshTokenRepository;
+import com.yechan.fishing.fishing_api.domain.auth.repository.UserRepository;
+import com.yechan.fishing.fishing_api.global.exception.ErrorCode;
+import com.yechan.fishing.fishing_api.global.exception.FishingException;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class AuthService {
+
+  private final UserRepository userRepository;
+  private final UserRefreshTokenRepository userRefreshTokenRepository;
+  private final JwtTokenProvider jwtTokenProvider;
+  private final Map<AuthProvider, SocialUserInfoClient> socialUserInfoClients;
+
+  public AuthService(
+      UserRepository userRepository,
+      UserRefreshTokenRepository userRefreshTokenRepository,
+      JwtTokenProvider jwtTokenProvider,
+      List<SocialUserInfoClient> socialUserInfoClients) {
+    this.userRepository = userRepository;
+    this.userRefreshTokenRepository = userRefreshTokenRepository;
+    this.jwtTokenProvider = jwtTokenProvider;
+    this.socialUserInfoClients =
+        socialUserInfoClients.stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    SocialUserInfoClient::provider, Function.identity()));
+  }
+
+  @Transactional
+  public AuthTokenResponse socialLogin(SocialLoginRequest request, String userAgent) {
+    SocialUserInfoClient client = getClient(request.provider());
+    SocialUserInfo socialUserInfo = client.getUserInfo(request.accessToken());
+    LocalDateTime now = LocalDateTime.now();
+
+    User user =
+        userRepository
+            .findByProviderAndProviderUserId(request.provider(), socialUserInfo.providerUserId())
+            .map(
+                existingUser -> {
+                  existingUser.updateSocialProfile(
+                      socialUserInfo.email(),
+                      resolveNickname(request.provider(), socialUserInfo),
+                      socialUserInfo.profileImageUrl(),
+                      now);
+                  return existingUser;
+                })
+            .orElseGet(
+                () ->
+                    User.create(
+                        request.provider(),
+                        socialUserInfo.providerUserId(),
+                        socialUserInfo.email(),
+                        resolveNickname(request.provider(), socialUserInfo),
+                        socialUserInfo.profileImageUrl(),
+                        now));
+
+    user = userRepository.save(user);
+    validateActiveUser(user);
+
+    IssuedTokens tokens = jwtTokenProvider.issueTokens(user);
+    userRefreshTokenRepository.save(
+        UserRefreshToken.issue(
+            user,
+            tokens.refreshToken(),
+            tokens.refreshTokenExpiresAt(),
+            request.deviceName(),
+            userAgent,
+            now));
+
+    return toAuthTokenResponse(user, tokens);
+  }
+
+  @Transactional
+  public AuthTokenResponse refresh(RefreshTokenRequest request, String userAgent) {
+    LocalDateTime now = LocalDateTime.now();
+    UserRefreshToken savedToken =
+        userRefreshTokenRepository
+            .findByRefreshTokenAndRevokedAtIsNull(request.refreshToken())
+            .orElseThrow(() -> new FishingException(ErrorCode.AUTH_REFRESH_TOKEN_NOT_FOUND));
+
+    RefreshTokenPayload payload = jwtTokenProvider.parseRefreshToken(request.refreshToken());
+    if (!savedToken.getUser().getId().equals(payload.userId())
+        || savedToken.isRevoked()
+        || savedToken.isExpired(now)
+        || payload.expiresAt().isBefore(now)) {
+      throw new FishingException(ErrorCode.AUTH_INVALID_REFRESH_TOKEN);
+    }
+
+    User user = savedToken.getUser();
+    validateActiveUser(user);
+    user.updateSocialProfile(user.getEmail(), user.getNickname(), user.getProfileImageUrl(), now);
+    savedToken.revoke(now);
+
+    IssuedTokens tokens = jwtTokenProvider.issueTokens(user);
+    userRefreshTokenRepository.save(
+        UserRefreshToken.issue(
+            user,
+            tokens.refreshToken(),
+            tokens.refreshTokenExpiresAt(),
+            request.deviceName(),
+            userAgent,
+            now));
+
+    return toAuthTokenResponse(user, tokens);
+  }
+
+  private SocialUserInfoClient getClient(AuthProvider provider) {
+    SocialUserInfoClient client = socialUserInfoClients.get(provider);
+    if (client == null) {
+      throw new FishingException(ErrorCode.AUTH_PROVIDER_NOT_SUPPORTED);
+    }
+    return client;
+  }
+
+  private void validateActiveUser(User user) {
+    if (user.getStatus() != UserStatus.ACTIVE) {
+      throw new FishingException(ErrorCode.AUTH_USER_INACTIVE);
+    }
+  }
+
+  private String resolveNickname(AuthProvider provider, SocialUserInfo socialUserInfo) {
+    if (socialUserInfo.nickname() != null && !socialUserInfo.nickname().isBlank()) {
+      return socialUserInfo.nickname();
+    }
+    if (socialUserInfo.email() != null && socialUserInfo.email().contains("@")) {
+      return socialUserInfo.email().substring(0, socialUserInfo.email().indexOf('@'));
+    }
+
+    String providerUserId = socialUserInfo.providerUserId();
+    String suffix =
+        providerUserId == null
+            ? "user"
+            : providerUserId.substring(Math.max(0, providerUserId.length() - 6));
+    return provider.name().toLowerCase() + "_" + suffix;
+  }
+
+  private AuthTokenResponse toAuthTokenResponse(User user, IssuedTokens tokens) {
+    return new AuthTokenResponse(
+        tokens.accessToken(),
+        tokens.refreshToken(),
+        tokens.accessTokenExpiresAt(),
+        tokens.refreshTokenExpiresAt(),
+        new AuthUserResponse(
+            user.getId(),
+            user.getNickname(),
+            user.getProfileImageUrl(),
+            user.getRole(),
+            user.getStatus()));
+  }
+}
