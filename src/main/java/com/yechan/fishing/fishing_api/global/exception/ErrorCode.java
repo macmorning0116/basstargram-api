@@ -16,6 +16,8 @@ public enum ErrorCode {
   AUTH_INVALID_OAUTH_STATE("AUTH_INVALID_OAUTH_STATE", "유효하지 않은 OAuth state 입니다."),
   AUTH_REFRESH_TOKEN_NOT_FOUND("AUTH_REFRESH_TOKEN_NOT_FOUND", "리프레시 토큰을 찾을 수 없습니다."),
   AUTH_USER_INACTIVE("AUTH_USER_INACTIVE", "활성 상태의 사용자가 아닙니다."),
+  USER_NICKNAME_DUPLICATE("USER_NICKNAME_DUPLICATE", "이미 사용 중인 닉네임입니다."),
+  USER_PROFILE_ALREADY_SET("USER_PROFILE_ALREADY_SET", "이미 프로필이 설정된 사용자입니다."),
 
   // 네이버
   NAVER_API_ERROR("NAVER_API_ERROR", "주소 변환에 실패했습니다."),

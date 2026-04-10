@@ -1,0 +1,6 @@
+package com.yechan.fishing.fishing_api.domain.user.dto;
+
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+
+public record CompleteProfileRequest(@NotBlank @Size(min = 2, max = 20) String nickname) {}

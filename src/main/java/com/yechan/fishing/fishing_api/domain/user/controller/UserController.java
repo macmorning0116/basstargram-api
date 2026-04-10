@@ -1,0 +1,59 @@
+package com.yechan.fishing.fishing_api.domain.user.controller;
+
+import com.yechan.fishing.fishing_api.domain.auth.cookie.RefreshTokenCookieManager;
+import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
+import com.yechan.fishing.fishing_api.domain.auth.security.AuthenticatedUser;
+import com.yechan.fishing.fishing_api.domain.auth.security.CurrentUser;
+import com.yechan.fishing.fishing_api.domain.auth.service.AuthSessionResult;
+import com.yechan.fishing.fishing_api.domain.user.dto.CompleteProfileRequest;
+import com.yechan.fishing.fishing_api.domain.user.dto.NicknameCheckResponse;
+import com.yechan.fishing.fishing_api.domain.user.service.UserService;
+import com.yechan.fishing.fishing_api.global.response.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@Validated
+@RestController
+@RequestMapping("/v1/users")
+public class UserController {
+
+  private final UserService userService;
+  private final RefreshTokenCookieManager refreshTokenCookieManager;
+
+  public UserController(
+      UserService userService, RefreshTokenCookieManager refreshTokenCookieManager) {
+    this.userService = userService;
+    this.refreshTokenCookieManager = refreshTokenCookieManager;
+  }
+
+  @GetMapping("/nickname/check")
+  public ApiResponse<NicknameCheckResponse> checkNickname(
+      @RequestParam @NotBlank @Size(min = 2, max = 20) String nickname) {
+    return ApiResponse.success(
+        new NicknameCheckResponse(userService.isNicknameAvailable(nickname)));
+  }
+
+  @PostMapping("/me/profile")
+  public ApiResponse<AuthTokenResponse> completeProfile(
+      @CurrentUser AuthenticatedUser user,
+      @Valid @RequestBody CompleteProfileRequest request,
+      HttpServletRequest httpServletRequest,
+      HttpServletResponse httpServletResponse) {
+    AuthSessionResult result =
+        userService.completeProfile(
+            user.id(), request.nickname(), httpServletRequest.getHeader("User-Agent"));
+    refreshTokenCookieManager.addRefreshTokenCookie(
+        httpServletResponse, result.refreshToken(), result.response().refreshTokenExpiresAt());
+    return ApiResponse.success(result.response());
+  }
+}

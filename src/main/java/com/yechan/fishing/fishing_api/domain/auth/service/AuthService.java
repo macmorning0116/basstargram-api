@@ -69,10 +69,7 @@ public class AuthService {
             .map(
                 existingUser -> {
                   existingUser.updateSocialProfile(
-                      socialUserInfo.email(),
-                      resolveNickname(provider, socialUserInfo),
-                      socialUserInfo.profileImageUrl(),
-                      now);
+                      socialUserInfo.email(), socialUserInfo.profileImageUrl(), now);
                   return existingUser;
                 })
             .orElseGet(
@@ -86,7 +83,9 @@ public class AuthService {
                         now));
 
     user = userRepository.save(user);
-    validateActiveUser(user);
+    if (user.getStatus() == UserStatus.INACTIVE || user.getStatus() == UserStatus.DELETED) {
+      throw new FishingException(ErrorCode.AUTH_USER_INACTIVE);
+    }
 
     IssuedTokens tokens = jwtTokenProvider.issueTokens(user);
     userRefreshTokenRepository.save(
@@ -122,8 +121,9 @@ public class AuthService {
     }
 
     User user = savedToken.getUser();
-    validateActiveUser(user);
-    user.updateSocialProfile(user.getEmail(), user.getNickname(), user.getProfileImageUrl(), now);
+    if (user.getStatus() == UserStatus.INACTIVE || user.getStatus() == UserStatus.DELETED) {
+      throw new FishingException(ErrorCode.AUTH_USER_INACTIVE);
+    }
     savedToken.revoke(now);
 
     IssuedTokens tokens = jwtTokenProvider.issueTokens(user);
@@ -156,12 +156,6 @@ public class AuthService {
       throw new FishingException(ErrorCode.AUTH_PROVIDER_NOT_SUPPORTED);
     }
     return client;
-  }
-
-  private void validateActiveUser(User user) {
-    if (user.getStatus() != UserStatus.ACTIVE) {
-      throw new FishingException(ErrorCode.AUTH_USER_INACTIVE);
-    }
   }
 
   private String resolveNickname(AuthProvider provider, SocialUserInfo socialUserInfo) {

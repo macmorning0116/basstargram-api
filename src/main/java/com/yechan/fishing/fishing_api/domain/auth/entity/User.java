@@ -87,7 +87,7 @@ public class User {
     user.email = email;
     user.nickname = nickname;
     user.profileImageUrl = profileImageUrl;
-    user.status = UserStatus.ACTIVE;
+    user.status = UserStatus.PENDING;
     user.role = UserRole.USER;
     user.reportCount = 0;
     user.lastLoginAt = now;
@@ -96,12 +96,19 @@ public class User {
     return user;
   }
 
-  public void updateSocialProfile(
-      String email, String nickname, String profileImageUrl, LocalDateTime now) {
+  public void updateSocialProfile(String email, String profileImageUrl, LocalDateTime now) {
     this.email = email;
-    this.nickname = nickname;
     this.profileImageUrl = profileImageUrl;
     this.lastLoginAt = now;
+    this.updatedAt = now;
+  }
+
+  public void completeProfile(String nickname, String profileImageUrl, LocalDateTime now) {
+    this.nickname = nickname;
+    if (profileImageUrl != null) {
+      this.profileImageUrl = profileImageUrl;
+    }
+    this.status = UserStatus.ACTIVE;
     this.updatedAt = now;
   }
 
@@ -109,6 +116,10 @@ public class User {
     if (status != UserStatus.ACTIVE) {
       throw new FishingException(ErrorCode.AUTH_USER_INACTIVE);
     }
+  }
+
+  public boolean isPending() {
+    return status == UserStatus.PENDING;
   }
 
   public void incrementReportCount() {

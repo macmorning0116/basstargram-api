@@ -163,7 +163,7 @@ class AuthServiceTest {
     assertEquals("new-access-token", result.response().accessToken());
     assertEquals("new-refresh-token", result.refreshToken());
     assertNotNull(savedToken.getRevokedAt());
-    assertEquals(UserStatus.ACTIVE, result.response().user().status());
+    assertEquals(UserStatus.PENDING, result.response().user().status());
   }
 
   @Test

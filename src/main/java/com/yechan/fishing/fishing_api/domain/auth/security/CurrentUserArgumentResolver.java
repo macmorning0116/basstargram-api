@@ -51,7 +51,10 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
         userRepository
             .findById(payload.userId())
             .orElseThrow(() -> new FishingException(ErrorCode.AUTH_INVALID_TOKEN));
-    user.ensureActive();
+
+    if (!user.isPending()) {
+      user.ensureActive();
+    }
 
     return new AuthenticatedUser(user.getId(), user.getRole());
   }
