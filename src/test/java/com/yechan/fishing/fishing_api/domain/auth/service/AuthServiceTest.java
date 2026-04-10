@@ -9,9 +9,7 @@ import static org.mockito.BDDMockito.then;
 
 import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfo;
 import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfoClient;
-import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
 import com.yechan.fishing.fishing_api.domain.auth.entity.User;
 import com.yechan.fishing.fishing_api.domain.auth.entity.UserRefreshToken;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
@@ -76,13 +74,13 @@ class AuthServiceTest {
             });
     given(jwtTokenProvider.issueTokens(any(User.class))).willReturn(issuedTokens);
 
-    AuthTokenResponse response =
+    AuthSessionResult result =
         service.loginWithAuthorizationCode(AuthProvider.KAKAO, request, "ios-user-agent");
 
-    assertEquals("access-token", response.accessToken());
-    assertEquals("refresh-token", response.refreshToken());
-    assertEquals(1L, response.user().id());
-    assertEquals("앵글러", response.user().nickname());
+    assertEquals("access-token", result.response().accessToken());
+    assertEquals("refresh-token", result.refreshToken());
+    assertEquals(1L, result.response().user().id());
+    assertEquals("앵글러", result.response().user().nickname());
     then(userRefreshTokenRepository).should().save(any(UserRefreshToken.class));
   }
 
@@ -111,13 +109,13 @@ class AuthServiceTest {
     AuthService service =
         new AuthService(
             userRepository, userRefreshTokenRepository, jwtTokenProvider, List.of(kakaoClient));
-    RefreshTokenRequest request = new RefreshTokenRequest("missing-token", "iPhone");
 
     given(userRefreshTokenRepository.findByRefreshTokenAndRevokedAtIsNull("missing-token"))
         .willReturn(Optional.empty());
 
     FishingException exception =
-        assertThrows(FishingException.class, () -> service.refresh(request, "ios-user-agent"));
+        assertThrows(
+            FishingException.class, () -> service.refresh("missing-token", "ios-user-agent"));
 
     assertEquals(ErrorCode.AUTH_REFRESH_TOKEN_NOT_FOUND, exception.getErrorCode());
   }
@@ -128,7 +126,6 @@ class AuthServiceTest {
     AuthService service =
         new AuthService(
             userRepository, userRefreshTokenRepository, jwtTokenProvider, List.of(kakaoClient));
-    RefreshTokenRequest request = new RefreshTokenRequest("old-refresh-token", "iPhone");
     User user =
         User.create(
             AuthProvider.GOOGLE,
@@ -161,11 +158,42 @@ class AuthServiceTest {
     given(userRefreshTokenRepository.save(any(UserRefreshToken.class)))
         .willAnswer(invocation -> invocation.getArgument(0));
 
-    AuthTokenResponse response = service.refresh(request, "ios-user-agent");
+    AuthSessionResult result = service.refresh("old-refresh-token", "ios-user-agent");
 
-    assertEquals("new-access-token", response.accessToken());
-    assertEquals("new-refresh-token", response.refreshToken());
+    assertEquals("new-access-token", result.response().accessToken());
+    assertEquals("new-refresh-token", result.refreshToken());
     assertNotNull(savedToken.getRevokedAt());
-    assertEquals(UserStatus.ACTIVE, response.user().status());
+    assertEquals(UserStatus.ACTIVE, result.response().user().status());
+  }
+
+  @Test
+  void logout_whenSavedTokenExists_revokesToken() {
+    given(kakaoClient.provider()).willReturn(AuthProvider.KAKAO);
+    AuthService service =
+        new AuthService(
+            userRepository, userRefreshTokenRepository, jwtTokenProvider, List.of(kakaoClient));
+    User user =
+        User.create(
+            AuthProvider.KAKAO,
+            "kakao-user-1",
+            "angler@example.com",
+            "앵글러",
+            null,
+            LocalDateTime.now().minusDays(1));
+    UserRefreshToken savedToken =
+        UserRefreshToken.issue(
+            user,
+            "refresh-token",
+            LocalDateTime.now().plusDays(7),
+            "iphone",
+            "ios-agent",
+            LocalDateTime.now().minusHours(1));
+
+    given(userRefreshTokenRepository.findByRefreshTokenAndRevokedAtIsNull("refresh-token"))
+        .willReturn(Optional.of(savedToken));
+
+    service.logout("refresh-token");
+
+    assertNotNull(savedToken.getRevokedAt());
   }
 }

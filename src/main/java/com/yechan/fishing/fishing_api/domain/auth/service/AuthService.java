@@ -5,7 +5,6 @@ import com.yechan.fishing.fishing_api.domain.auth.client.SocialUserInfoClient;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthUserResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
 import com.yechan.fishing.fishing_api.domain.auth.dto.SocialAuthorizationUrlResponse;
 import com.yechan.fishing.fishing_api.domain.auth.entity.User;
 import com.yechan.fishing.fishing_api.domain.auth.entity.UserRefreshToken;
@@ -55,7 +54,7 @@ public class AuthService {
   }
 
   @Transactional
-  public AuthTokenResponse loginWithAuthorizationCode(
+  public AuthSessionResult loginWithAuthorizationCode(
       AuthProvider provider, AuthorizationCodeLoginRequest request, String userAgent) {
     jwtTokenProvider.validateOAuthState(provider, request.state());
 
@@ -99,18 +98,22 @@ public class AuthService {
             userAgent,
             now));
 
-    return toAuthTokenResponse(user, tokens);
+    return toAuthSessionResult(user, tokens);
   }
 
   @Transactional
-  public AuthTokenResponse refresh(RefreshTokenRequest request, String userAgent) {
+  public AuthSessionResult refresh(String refreshToken, String userAgent) {
+    if (refreshToken == null || refreshToken.isBlank()) {
+      throw new FishingException(ErrorCode.AUTH_REFRESH_TOKEN_NOT_FOUND);
+    }
+
     LocalDateTime now = LocalDateTime.now();
     UserRefreshToken savedToken =
         userRefreshTokenRepository
-            .findByRefreshTokenAndRevokedAtIsNull(request.refreshToken())
+            .findByRefreshTokenAndRevokedAtIsNull(refreshToken)
             .orElseThrow(() -> new FishingException(ErrorCode.AUTH_REFRESH_TOKEN_NOT_FOUND));
 
-    RefreshTokenPayload payload = jwtTokenProvider.parseRefreshToken(request.refreshToken());
+    RefreshTokenPayload payload = jwtTokenProvider.parseRefreshToken(refreshToken);
     if (!savedToken.getUser().getId().equals(payload.userId())
         || savedToken.isRevoked()
         || savedToken.isExpired(now)
@@ -129,11 +132,22 @@ public class AuthService {
             user,
             tokens.refreshToken(),
             tokens.refreshTokenExpiresAt(),
-            request.deviceName(),
+            savedToken.getDeviceName(),
             userAgent,
             now));
 
-    return toAuthTokenResponse(user, tokens);
+    return toAuthSessionResult(user, tokens);
+  }
+
+  @Transactional
+  public void logout(String refreshToken) {
+    if (refreshToken == null || refreshToken.isBlank()) {
+      return;
+    }
+
+    userRefreshTokenRepository
+        .findByRefreshTokenAndRevokedAtIsNull(refreshToken)
+        .ifPresent(token -> token.revoke(LocalDateTime.now()));
   }
 
   private SocialUserInfoClient getClient(AuthProvider provider) {
@@ -166,17 +180,18 @@ public class AuthService {
     return provider.name().toLowerCase() + "_" + suffix;
   }
 
-  private AuthTokenResponse toAuthTokenResponse(User user, IssuedTokens tokens) {
-    return new AuthTokenResponse(
-        tokens.accessToken(),
+  private AuthSessionResult toAuthSessionResult(User user, IssuedTokens tokens) {
+    return new AuthSessionResult(
         tokens.refreshToken(),
-        tokens.accessTokenExpiresAt(),
-        tokens.refreshTokenExpiresAt(),
-        new AuthUserResponse(
-            user.getId(),
-            user.getNickname(),
-            user.getProfileImageUrl(),
-            user.getRole(),
-            user.getStatus()));
+        new AuthTokenResponse(
+            tokens.accessToken(),
+            tokens.accessTokenExpiresAt(),
+            tokens.refreshTokenExpiresAt(),
+            new AuthUserResponse(
+                user.getId(),
+                user.getNickname(),
+                user.getProfileImageUrl(),
+                user.getRole(),
+                user.getStatus())));
   }
 }

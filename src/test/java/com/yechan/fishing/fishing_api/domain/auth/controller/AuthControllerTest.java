@@ -8,15 +8,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.yechan.fishing.fishing_api.domain.auth.cookie.RefreshTokenCookieManager;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthTokenResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthUserResponse;
 import com.yechan.fishing.fishing_api.domain.auth.dto.AuthorizationCodeLoginRequest;
-import com.yechan.fishing.fishing_api.domain.auth.dto.RefreshTokenRequest;
 import com.yechan.fishing.fishing_api.domain.auth.dto.SocialAuthorizationUrlResponse;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.AuthProvider;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.UserRole;
 import com.yechan.fishing.fishing_api.domain.auth.entity.enums.UserStatus;
 import com.yechan.fishing.fishing_api.domain.auth.service.AuthService;
+import com.yechan.fishing.fishing_api.domain.auth.service.AuthSessionResult;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,19 +35,23 @@ class AuthControllerTest {
 
   @MockBean private AuthService authService;
 
+  @MockBean private RefreshTokenCookieManager refreshTokenCookieManager;
+
   @Test
   void loginWithAuthorizationCode_returnsWrappedSuccessResponse() throws Exception {
     AuthorizationCodeLoginRequest request =
         new AuthorizationCodeLoginRequest("auth-code", "signed-state", "iPhone");
-    AuthTokenResponse response =
-        new AuthTokenResponse(
-            "access-token",
+    AuthSessionResult result =
+        new AuthSessionResult(
             "refresh-token",
-            LocalDateTime.of(2026, 4, 10, 17, 0),
-            LocalDateTime.of(2026, 4, 24, 17, 0),
-            new AuthUserResponse(1L, "앵글러", "https://image", UserRole.USER, UserStatus.ACTIVE));
+            new AuthTokenResponse(
+                "access-token",
+                LocalDateTime.of(2026, 4, 10, 17, 0),
+                LocalDateTime.of(2026, 4, 24, 17, 0),
+                new AuthUserResponse(
+                    1L, "앵글러", "https://image", UserRole.USER, UserStatus.ACTIVE)));
 
-    given(authService.loginWithAuthorizationCode(any(), any(), any())).willReturn(response);
+    given(authService.loginWithAuthorizationCode(any(), any(), any())).willReturn(result);
 
     mockMvc
         .perform(
@@ -57,7 +62,6 @@ class AuthControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
         .andExpect(jsonPath("$.data.accessToken").value("access-token"))
-        .andExpect(jsonPath("$.data.refreshToken").value("refresh-token"))
         .andExpect(jsonPath("$.data.user.nickname").value("앵글러"));
   }
 
@@ -81,26 +85,39 @@ class AuthControllerTest {
 
   @Test
   void refresh_returnsWrappedSuccessResponse() throws Exception {
-    RefreshTokenRequest request = new RefreshTokenRequest("refresh-token", "iPhone");
-    AuthTokenResponse response =
-        new AuthTokenResponse(
-            "new-access-token",
+    AuthSessionResult result =
+        new AuthSessionResult(
             "new-refresh-token",
-            LocalDateTime.of(2026, 4, 10, 17, 0),
-            LocalDateTime.of(2026, 4, 24, 17, 0),
-            new AuthUserResponse(1L, "앵글러", "https://image", UserRole.USER, UserStatus.ACTIVE));
+            new AuthTokenResponse(
+                "new-access-token",
+                LocalDateTime.of(2026, 4, 10, 17, 0),
+                LocalDateTime.of(2026, 4, 24, 17, 0),
+                new AuthUserResponse(
+                    1L, "앵글러", "https://image", UserRole.USER, UserStatus.ACTIVE)));
 
-    given(authService.refresh(any(), any())).willReturn(response);
+    given(refreshTokenCookieManager.extractRefreshToken(any())).willReturn("refresh-token");
+    given(authService.refresh("refresh-token", "ios")).willReturn(result);
 
     mockMvc
         .perform(
             post("/v1/auth/refresh")
                 .header("User-Agent", "ios")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
+                .cookie(new jakarta.servlet.http.Cookie("refresh_token", "refresh-token")))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.success").value(true))
-        .andExpect(jsonPath("$.data.accessToken").value("new-access-token"))
-        .andExpect(jsonPath("$.data.refreshToken").value("new-refresh-token"));
+        .andExpect(jsonPath("$.data.accessToken").value("new-access-token"));
+  }
+
+  @Test
+  void logout_clearsRefreshTokenCookie() throws Exception {
+    given(refreshTokenCookieManager.extractRefreshToken(any())).willReturn("refresh-token");
+
+    mockMvc
+        .perform(
+            post("/v1/auth/logout")
+                .cookie(new jakarta.servlet.http.Cookie("refresh_token", "refresh-token")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.success").value(true))
+        .andExpect(jsonPath("$.data").doesNotExist());
   }
 }
