@@ -48,4 +48,35 @@ public class UserRefreshToken {
 
   @Column(name = "user_agent", columnDefinition = "TEXT")
   private String userAgent;
+
+  public static UserRefreshToken issue(
+      User user,
+      String refreshToken,
+      LocalDateTime expiresAt,
+      String deviceName,
+      String userAgent,
+      LocalDateTime now) {
+    UserRefreshToken token = new UserRefreshToken();
+    token.user = user;
+    token.refreshToken = refreshToken;
+    token.expiresAt = expiresAt;
+    token.createdAt = now;
+    token.updatedAt = now;
+    token.deviceName = deviceName;
+    token.userAgent = userAgent;
+    return token;
+  }
+
+  public boolean isExpired(LocalDateTime now) {
+    return expiresAt.isBefore(now);
+  }
+
+  public boolean isRevoked() {
+    return revokedAt != null;
+  }
+
+  public void revoke(LocalDateTime now) {
+    this.revokedAt = now;
+    this.updatedAt = now;
+  }
 }
