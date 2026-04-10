@@ -29,6 +29,8 @@ dependencies {
 	implementation 'com.drewnoakes:metadata-extractor:2.19.0'
 	implementation 'org.flywaydb:flyway-core'
 	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.hibernate.orm:hibernate-spatial'
+	implementation 'org.locationtech.jts:jts-core'
 
 	// Lombok
 	compileOnly 'org.projectlombok:lombok'

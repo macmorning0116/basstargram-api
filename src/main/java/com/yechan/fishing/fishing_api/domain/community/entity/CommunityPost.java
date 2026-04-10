@@ -17,13 +17,15 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import org.locationtech.jts.geom.Point;
 
 @Getter
 @Entity
@@ -50,11 +52,9 @@ public class CommunityPost {
   @Column(name = "place_name", length = 255)
   private String placeName;
 
-  @Column(precision = 10, scale = 7)
-  private BigDecimal latitude;
-
-  @Column(precision = 10, scale = 7)
-  private BigDecimal longitude;
+  @JdbcTypeCode(SqlTypes.GEOGRAPHY)
+  @Column(name = "location", columnDefinition = "geography(Point,4326)")
+  private Point location;
 
   @Column(name = "fished_at")
   private LocalDateTime fishedAt;
@@ -111,6 +111,14 @@ public class CommunityPost {
 
   @Column(name = "deleted_at")
   private LocalDateTime deletedAt;
+
+  public Double getLatitude() {
+    return location == null ? null : location.getY();
+  }
+
+  public Double getLongitude() {
+    return location == null ? null : location.getX();
+  }
 
   public void incrementLikeCount() {
     likeCount = likeCount + 1;

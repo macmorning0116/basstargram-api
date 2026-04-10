@@ -31,7 +31,6 @@ import com.yechan.fishing.fishing_api.domain.community.storage.ImageStorageServi
 import com.yechan.fishing.fishing_api.domain.community.storage.StoredCommunityImage;
 import com.yechan.fishing.fishing_api.global.exception.ErrorCode;
 import com.yechan.fishing.fishing_api.global.exception.FishingException;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -39,6 +38,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,6 +51,8 @@ import org.springframework.web.multipart.MultipartFile;
 public class CommunityService {
 
   private static final int REPORT_HIDE_THRESHOLD = 5;
+  private static final GeometryFactory GEOMETRY_FACTORY =
+      new GeometryFactory(new PrecisionModel(), 4326);
 
   private final UserRepository userRepository;
   private final CommunityPostRepository communityPostRepository;
@@ -128,8 +133,7 @@ public class CommunityService {
                 .content(request.content().trim())
                 .region(request.region().trim())
                 .placeName(request.placeName())
-                .latitude(toBigDecimal(request.latitude()))
-                .longitude(toBigDecimal(request.longitude()))
+                .location(toPoint(request.latitude(), request.longitude()))
                 .fishedAt(request.fishedAt())
                 .fishedAtSource(request.fishedAtSource())
                 .locationSource(request.locationSource())
@@ -364,8 +368,8 @@ public class CommunityService {
         post.getContent(),
         post.getRegion(),
         post.getPlaceName(),
-        toDouble(post.getLatitude()),
-        toDouble(post.getLongitude()),
+        post.getLatitude(),
+        post.getLongitude(),
         post.getFishedAt(),
         post.getSpecies(),
         post.getLengthCm(),
@@ -433,12 +437,17 @@ public class CommunityService {
         .orElseThrow(() -> new FishingException(ErrorCode.USER_NOT_FOUND));
   }
 
-  private BigDecimal toBigDecimal(Double value) {
-    return value == null ? null : BigDecimal.valueOf(value);
-  }
+  private Point toPoint(Double latitude, Double longitude) {
+    if (latitude == null && longitude == null) {
+      return null;
+    }
+    if (latitude == null || longitude == null) {
+      throw new FishingException(ErrorCode.INVALID_COORD);
+    }
 
-  private Double toDouble(BigDecimal value) {
-    return value == null ? null : value.doubleValue();
+    Point point = GEOMETRY_FACTORY.createPoint(new Coordinate(longitude, latitude));
+    point.setSRID(4326);
+    return point;
   }
 
   private String firstUploadedImageUrl(List<StoredCommunityImage> storedImages) {
