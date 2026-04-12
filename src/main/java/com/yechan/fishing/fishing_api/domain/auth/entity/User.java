@@ -99,9 +99,14 @@ public class User {
     return user;
   }
 
-  public void updateSocialProfile(String email, String profileImageUrl, LocalDateTime now) {
+  public void updateSocialProfile(String email, String socialProfileImageUrl, LocalDateTime now) {
     this.email = email;
-    this.profileImageUrl = profileImageUrl;
+    // Keep custom-uploaded profile image (S3 or local uploads)
+    if (this.profileImageUrl == null
+        || (!this.profileImageUrl.startsWith("/uploads/")
+            && !this.profileImageUrl.contains("s3.ap-northeast-2.amazonaws.com"))) {
+      this.profileImageUrl = socialProfileImageUrl;
+    }
     this.lastLoginAt = now;
     this.updatedAt = now;
   }
