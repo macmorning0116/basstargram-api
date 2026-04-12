@@ -13,10 +13,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import javax.imageio.ImageIO;
-import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-@Service
 public class LocalImageStorageService implements ImageStorageService {
 
   private static final int MAX_IMAGE_COUNT = 5;
