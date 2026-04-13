@@ -74,12 +74,13 @@ public class CommunityController {
     return ApiResponse.success(communityService.createPost(user.id(), request, images));
   }
 
-  @PutMapping("/posts/{postId}")
+  @PutMapping(value = "/posts/{postId}", consumes = "multipart/form-data")
   public ApiResponse<CommunityPostDetailResponse> editPost(
       @PathVariable Long postId,
       @CurrentUser AuthenticatedUser user,
-      @Valid @RequestBody UpdateCommunityPostRequest request) {
-    return ApiResponse.success(communityService.editPost(postId, user.id(), request.content()));
+      @Valid @RequestPart("request") UpdateCommunityPostRequest request,
+      @RequestPart(value = "images", required = false) List<MultipartFile> images) {
+    return ApiResponse.success(communityService.editPost(postId, user.id(), request, images));
   }
 
   @DeleteMapping("/posts/{postId}")

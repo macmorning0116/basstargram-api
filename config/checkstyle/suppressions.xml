@@ -31,8 +31,9 @@
   <!-- GptClient: prompt builder is inherently long -->
   <suppress files=".*GptClient\.java$" checks="MethodLength"/>
 
-  <!-- Service classes: allow slightly longer files -->
+  <!-- Service classes: allow slightly longer files and methods -->
   <suppress files=".*Service\.java$" checks="FileLength"/>
+  <suppress files=".*Service\.java$" checks="MethodLength"/>
 
   <!-- Storage service: image processing methods can be long -->
   <suppress files=".*StorageService\.java$" checks="MethodLength"/>

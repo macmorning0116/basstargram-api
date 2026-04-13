@@ -151,6 +151,35 @@ public class CommunityPost {
     this.updatedAt = now;
   }
 
+  public void updateAll(
+      String content,
+      String region,
+      String placeName,
+      Point location,
+      LocalDateTime fishedAt,
+      FishedAtSource fishedAtSource,
+      LocationSource locationSource,
+      String species,
+      Integer lengthCm,
+      TackleType tackleType,
+      String tackleCustomText,
+      String thumbnailImageUrl,
+      LocalDateTime now) {
+    this.content = content;
+    this.region = region;
+    this.placeName = placeName;
+    this.location = location;
+    this.fishedAt = fishedAt;
+    this.fishedAtSource = fishedAtSource;
+    this.locationSource = locationSource;
+    this.species = species;
+    this.lengthCm = lengthCm;
+    this.tackleType = tackleType;
+    this.tackleCustomText = tackleCustomText;
+    this.thumbnailImageUrl = thumbnailImageUrl;
+    this.updatedAt = now;
+  }
+
   public void softDelete(LocalDateTime now) {
     this.deletedAt = now;
     this.updatedAt = now;
