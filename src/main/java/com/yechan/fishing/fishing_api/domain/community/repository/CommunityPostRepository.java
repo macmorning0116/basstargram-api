@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface CommunityPostRepository extends JpaRepository<CommunityPost, Long> {
 
@@ -35,20 +36,39 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, Lo
   @Query("UPDATE CommunityPost p SET p.reportCount = p.reportCount + 1 WHERE p.id = :postId")
   void incrementReportCount(Long postId);
 
-  List<CommunityPost> findAllByVisibilityStatusOrderByIdDesc(
-      VisibilityStatus visibilityStatus, Pageable pageable);
+  @Query(
+      "SELECT p FROM CommunityPost p JOIN FETCH p.user"
+          + " WHERE p.visibilityStatus = :status"
+          + " ORDER BY p.id DESC")
+  List<CommunityPost> findAllWithUserByVisibilityStatus(
+      @Param("status") VisibilityStatus status, Pageable pageable);
 
-  List<CommunityPost> findAllByVisibilityStatusAndIdLessThanOrderByIdDesc(
-      VisibilityStatus visibilityStatus, Long cursor, Pageable pageable);
+  @Query(
+      "SELECT p FROM CommunityPost p JOIN FETCH p.user"
+          + " WHERE p.visibilityStatus = :status AND p.id < :cursor"
+          + " ORDER BY p.id DESC")
+  List<CommunityPost> findAllWithUserByVisibilityStatusAndIdLessThan(
+      @Param("status") VisibilityStatus status, @Param("cursor") Long cursor, Pageable pageable);
+
+  @Query(
+      "SELECT p FROM CommunityPost p JOIN FETCH p.user"
+          + " WHERE p.user.id = :userId AND p.visibilityStatus = :status"
+          + " ORDER BY p.id DESC")
+  List<CommunityPost> findAllWithUserByUserIdAndVisibilityStatus(
+      @Param("userId") Long userId, @Param("status") VisibilityStatus status, Pageable pageable);
+
+  @Query(
+      "SELECT p FROM CommunityPost p JOIN FETCH p.user"
+          + " WHERE p.user.id = :userId AND p.visibilityStatus = :status AND p.id < :cursor"
+          + " ORDER BY p.id DESC")
+  List<CommunityPost> findAllWithUserByUserIdAndVisibilityStatusAndIdLessThan(
+      @Param("userId") Long userId,
+      @Param("status") VisibilityStatus status,
+      @Param("cursor") Long cursor,
+      Pageable pageable);
 
   Optional<CommunityPost> findByIdAndVisibilityStatus(
       Long postId, VisibilityStatus visibilityStatus);
-
-  List<CommunityPost> findAllByUser_IdAndVisibilityStatusOrderByIdDesc(
-      Long userId, VisibilityStatus visibilityStatus, Pageable pageable);
-
-  List<CommunityPost> findAllByUser_IdAndVisibilityStatusAndIdLessThanOrderByIdDesc(
-      Long userId, VisibilityStatus visibilityStatus, Long cursor, Pageable pageable);
 
   long countByUser_IdAndVisibilityStatus(Long userId, VisibilityStatus visibilityStatus);
 }

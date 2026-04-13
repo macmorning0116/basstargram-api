@@ -3,10 +3,13 @@ package com.yechan.fishing.fishing_api.domain.community.service;
 import com.yechan.fishing.fishing_api.domain.auth.entity.User;
 import com.yechan.fishing.fishing_api.domain.auth.repository.UserRepository;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentItem;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentsRequest;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentsResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityLikeResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDetailResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostImageItem;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostItem;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostSummaryItem;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostsRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostsResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportRequest;
@@ -35,7 +38,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.locationtech.jts.geom.Coordinate;
@@ -86,34 +88,28 @@ public class CommunityService {
     if (request.authorId() != null) {
       posts =
           request.cursor() == null
-              ? communityPostRepository.findAllByUser_IdAndVisibilityStatusOrderByIdDesc(
+              ? communityPostRepository.findAllWithUserByUserIdAndVisibilityStatus(
                   request.authorId(), VisibilityStatus.VISIBLE, PageRequest.of(0, size))
-              : communityPostRepository
-                  .findAllByUser_IdAndVisibilityStatusAndIdLessThanOrderByIdDesc(
-                      request.authorId(),
-                      VisibilityStatus.VISIBLE,
-                      request.cursor(),
-                      PageRequest.of(0, size));
+              : communityPostRepository.findAllWithUserByUserIdAndVisibilityStatusAndIdLessThan(
+                  request.authorId(),
+                  VisibilityStatus.VISIBLE,
+                  request.cursor(),
+                  PageRequest.of(0, size));
     } else {
       posts =
           request.cursor() == null
-              ? communityPostRepository.findAllByVisibilityStatusOrderByIdDesc(
+              ? communityPostRepository.findAllWithUserByVisibilityStatus(
                   VisibilityStatus.VISIBLE, PageRequest.of(0, size))
-              : communityPostRepository.findAllByVisibilityStatusAndIdLessThanOrderByIdDesc(
+              : communityPostRepository.findAllWithUserByVisibilityStatusAndIdLessThan(
                   VisibilityStatus.VISIBLE, request.cursor(), PageRequest.of(0, size));
     }
 
     List<Long> postIds = posts.stream().map(CommunityPost::getId).toList();
-    Map<Long, List<CommunityPostImage>> imagesByPostId = loadImagesByPostId(postIds);
     Map<Long, Boolean> likedByPostId = loadLikedByPostId(viewerUserId, postIds);
 
-    List<CommunityPostItem> items = new ArrayList<>();
+    List<CommunityPostSummaryItem> items = new ArrayList<>();
     for (CommunityPost post : posts) {
-      items.add(
-          toPostItem(
-              post,
-              likedByPostId.getOrDefault(post.getId(), false),
-              imagesByPostId.getOrDefault(post.getId(), List.of())));
+      items.add(toSummaryItem(post, likedByPostId.getOrDefault(post.getId(), false)));
     }
 
     Long nextCursor = items.size() == size ? items.get(items.size() - 1).id() : null;
@@ -173,11 +169,24 @@ public class CommunityService {
   }
 
   @Transactional(readOnly = true)
-  public List<CommunityCommentItem> getComments(Long postId) {
+  public CommunityCommentsResponse getComments(Long postId, CommunityCommentsRequest request) {
     getVisiblePost(postId);
-    List<CommunityComment> comments =
-        communityCommentRepository.findAllByPost_IdOrderByCreatedAtAsc(postId);
-    return comments.stream().map(this::toCommentItem).toList();
+    int size = request.safeSize();
+
+    List<CommunityComment> comments;
+    if (request.cursor() == null) {
+      comments =
+          communityCommentRepository.findFirstPageWithRelationsByPostId(
+              postId, PageRequest.of(0, size));
+    } else {
+      comments =
+          communityCommentRepository.findAllWithRelationsByPostIdAndIdGreaterThan(
+              postId, request.cursor(), PageRequest.of(0, size));
+    }
+
+    List<CommunityCommentItem> items = comments.stream().map(this::toCommentItem).toList();
+    Long nextCursor = items.size() == size ? items.get(items.size() - 1).id() : null;
+    return new CommunityCommentsResponse(items, size, nextCursor);
   }
 
   @Transactional
@@ -228,26 +237,29 @@ public class CommunityService {
       communityPostLikeRepository.save(
           CommunityPostLike.builder().post(post).user(user).createdAt(LocalDateTime.now()).build());
       communityPostRepository.incrementLikeCount(postId);
+      return new CommunityLikeResponse(true, post.getLikeCount() + 1);
     }
 
-    long likeCount = communityPostLikeRepository.countByPost_Id(postId);
-    return new CommunityLikeResponse(true, (int) likeCount);
+    return new CommunityLikeResponse(true, post.getLikeCount());
   }
 
   @Transactional
   public CommunityLikeResponse unlikePost(Long postId, Long userId) {
     CommunityPost post = getVisiblePost(postId);
 
-    communityPostLikeRepository
-        .findByPost_IdAndUser_Id(postId, userId)
-        .ifPresent(
-            like -> {
-              communityPostLikeRepository.delete(like);
-              communityPostRepository.decrementLikeCount(postId);
-            });
+    boolean removed =
+        communityPostLikeRepository
+            .findByPost_IdAndUser_Id(postId, userId)
+            .map(
+                like -> {
+                  communityPostLikeRepository.delete(like);
+                  communityPostRepository.decrementLikeCount(postId);
+                  return true;
+                })
+            .orElse(false);
 
-    long likeCount = communityPostLikeRepository.countByPost_Id(postId);
-    return new CommunityLikeResponse(false, (int) likeCount);
+    int likeCount = removed ? Math.max(0, post.getLikeCount() - 1) : post.getLikeCount();
+    return new CommunityLikeResponse(false, likeCount);
   }
 
   @Transactional
@@ -257,7 +269,7 @@ public class CommunityService {
     CommunityReport report = createReport(ReportTargetType.POST, postId, reporterUserId, request);
 
     communityPostRepository.incrementReportCount(postId);
-    communityPostRepository.findById(postId).ifPresent(this::applyAutoHide);
+    applyAutoHide(post);
 
     return new CommunityReportResponse(
         report.getId(), report.getStatus(), post.getVisibilityStatus());
@@ -271,7 +283,7 @@ public class CommunityService {
         createReport(ReportTargetType.COMMENT, commentId, reporterUserId, request);
 
     communityCommentRepository.incrementReportCount(commentId);
-    communityCommentRepository.findById(commentId).ifPresent(this::applyAutoHide);
+    applyAutoHide(comment);
 
     return new CommunityReportResponse(
         report.getId(), report.getStatus(), comment.getVisibilityStatus());
@@ -328,22 +340,6 @@ public class CommunityService {
     }
   }
 
-  private Map<Long, List<CommunityPostImage>> loadImagesByPostId(Collection<Long> postIds) {
-    if (postIds.isEmpty()) {
-      return Map.of();
-    }
-
-    List<CommunityPostImage> images =
-        communityPostImageRepository.findAllByPost_IdInOrderByPost_IdAscSortOrderAsc(postIds);
-    Map<Long, List<CommunityPostImage>> imagesByPostId = new LinkedHashMap<>();
-    for (CommunityPostImage image : images) {
-      imagesByPostId
-          .computeIfAbsent(image.getPost().getId(), ignored -> new ArrayList<>())
-          .add(image);
-    }
-    return imagesByPostId;
-  }
-
   private Map<Long, Boolean> loadLikedByPostId(Long viewerUserId, Collection<Long> postIds) {
     if (viewerUserId == null || postIds.isEmpty()) {
       return Map.of();
@@ -378,6 +374,21 @@ public class CommunityService {
               .build());
     }
     return images;
+  }
+
+  private CommunityPostSummaryItem toSummaryItem(CommunityPost post, boolean likedByMe) {
+    return new CommunityPostSummaryItem(
+        post.getId(),
+        post.getUser().getId(),
+        post.getUser().getNickname(),
+        post.getUser().getProfileImageUrl(),
+        post.getRegion(),
+        post.getSpecies(),
+        post.getThumbnailImageUrl(),
+        post.getLikeCount(),
+        post.getCommentCount(),
+        likedByMe,
+        post.getCreatedAt());
   }
 
   private CommunityPostItem toPostItem(

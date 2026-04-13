@@ -3,6 +3,8 @@ package com.yechan.fishing.fishing_api.domain.community.controller;
 import com.yechan.fishing.fishing_api.domain.auth.security.AuthenticatedUser;
 import com.yechan.fishing.fishing_api.domain.auth.security.CurrentUser;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentItem;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentsRequest;
+import com.yechan.fishing.fishing_api.domain.community.dto.CommunityCommentsResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityLikeResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDefaultsResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDetailResponse;
@@ -72,8 +74,9 @@ public class CommunityController {
   }
 
   @GetMapping("/posts/{postId}/comments")
-  public ApiResponse<List<CommunityCommentItem>> getComments(@PathVariable Long postId) {
-    return ApiResponse.success(communityService.getComments(postId));
+  public ApiResponse<CommunityCommentsResponse> getComments(
+      @PathVariable Long postId, @Valid CommunityCommentsRequest request) {
+    return ApiResponse.success(communityService.getComments(postId, request));
   }
 
   @PostMapping("/posts/{postId}/comments")
