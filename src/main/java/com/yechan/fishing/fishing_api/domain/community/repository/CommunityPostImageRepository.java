@@ -11,4 +11,6 @@ public interface CommunityPostImageRepository extends JpaRepository<CommunityPos
       Collection<Long> postIds);
 
   List<CommunityPostImage> findAllByPost_IdOrderBySortOrderAsc(Long postId);
+
+  void deleteAllByPost_IdAndIdIn(Long postId, Collection<Long> ids);
 }

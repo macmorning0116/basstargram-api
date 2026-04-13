@@ -16,6 +16,7 @@ import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportReques
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportResponse;
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityCommentRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityPostRequest;
+import com.yechan.fishing.fishing_api.domain.community.dto.UpdateCommunityPostRequest;
 import com.yechan.fishing.fishing_api.domain.community.entity.CommunityComment;
 import com.yechan.fishing.fishing_api.domain.community.entity.CommunityPost;
 import com.yechan.fishing.fishing_api.domain.community.entity.CommunityPostImage;
@@ -503,6 +504,84 @@ public class CommunityService {
     comment.softDelete(LocalDateTime.now());
   }
 
+  @Transactional
+  public CommunityPostDetailResponse editPost(
+      Long postId,
+      Long userId,
+      UpdateCommunityPostRequest request,
+      List<MultipartFile> newImageFiles) {
+    CommunityPost post = getPostOrThrow(postId);
+    if (!post.getUser().getId().equals(userId)) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_FORBIDDEN);
+    }
+    if (post.getDeletedAt() != null) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_DELETED);
+    }
+
+    LocalDateTime now = LocalDateTime.now();
+
+    // 이미지 삭제
+    if (request.deleteImageIds() != null && !request.deleteImageIds().isEmpty()) {
+      communityPostImageRepository.deleteAllByPost_IdAndIdIn(postId, request.deleteImageIds());
+    }
+
+    // 새 이미지 업로드
+    List<StoredCommunityImage> storedImages =
+        imageStorageService.storeCommunityImages(newImageFiles);
+    List<CommunityPostImage> newImages = createImages(post, storedImages, now);
+    if (!newImages.isEmpty()) {
+      communityPostImageRepository.saveAll(newImages);
+    }
+
+    // 남아있는 전체 이미지 조회 (삭제 후 + 새 이미지)
+    List<CommunityPostImage> allImages =
+        communityPostImageRepository.findAllByPost_IdOrderBySortOrderAsc(postId);
+
+    // 썸네일 결정: 새 이미지가 있으면 첫 번째 새 이미지 썸네일, 없으면 기존 첫 이미지
+    String thumbnailUrl = post.getThumbnailImageUrl();
+    if (!storedImages.isEmpty()) {
+      thumbnailUrl =
+          storedImages.get(0).thumbnailUrl() != null
+              ? storedImages.get(0).thumbnailUrl()
+              : storedImages.get(0).imageUrl();
+    } else if (!allImages.isEmpty()) {
+      thumbnailUrl = allImages.get(0).getImageUrl();
+    } else {
+      thumbnailUrl = null;
+    }
+
+    post.updateAll(
+        request.content().trim(),
+        request.region().trim(),
+        request.placeName(),
+        toPoint(request.latitude(), request.longitude()),
+        request.fishedAt(),
+        request.fishedAtSource(),
+        request.locationSource(),
+        request.species(),
+        request.lengthCm(),
+        request.tackleType(),
+        request.tackleCustomText(),
+        thumbnailUrl,
+        now);
+
+    boolean likedByMe = communityPostLikeRepository.existsByPost_IdAndUser_Id(postId, userId);
+    return new CommunityPostDetailResponse(
+        toPostItem(post, likedByMe, allImages), toImageItems(allImages));
+  }
+
+  @Transactional
+  public void deletePost(Long postId, Long userId) {
+    CommunityPost post = getPostOrThrow(postId);
+    if (!post.getUser().getId().equals(userId)) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_FORBIDDEN);
+    }
+    if (post.getDeletedAt() != null) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_DELETED);
+    }
+    post.softDelete(LocalDateTime.now());
+  }
+
   private User getUser(Long userId) {
     return userRepository
         .findById(userId)
@@ -526,7 +605,9 @@ public class CommunityService {
     if (storedImages == null || storedImages.isEmpty()) {
       return null;
     }
-    return storedImages.get(0).imageUrl();
+    StoredCommunityImage first = storedImages.get(0);
+    // 썸네일이 있으면 썸네일 URL을, 없으면 원본 URL을 사용
+    return first.thumbnailUrl() != null ? first.thumbnailUrl() : first.imageUrl();
   }
 
   private String firstSavedImageUrl(List<CommunityPostImage> images) {
