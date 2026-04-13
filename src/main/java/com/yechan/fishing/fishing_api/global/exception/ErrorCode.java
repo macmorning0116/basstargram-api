@@ -53,6 +53,8 @@ public enum ErrorCode {
       500, "COMMUNITY_IMAGE_METADATA_ERROR", "이미지 메타데이터를 읽는 중 에러가 발생했습니다."),
   COMMUNITY_COMMENT_FORBIDDEN(403, "COMMUNITY_COMMENT_FORBIDDEN", "본인의 댓글만 수정/삭제할 수 있습니다."),
   COMMUNITY_COMMENT_DELETED(400, "COMMUNITY_COMMENT_DELETED", "이미 삭제된 댓글입니다."),
+  COMMUNITY_POST_FORBIDDEN(403, "COMMUNITY_POST_FORBIDDEN", "본인의 게시글만 수정/삭제할 수 있습니다."),
+  COMMUNITY_POST_DELETED(400, "COMMUNITY_POST_DELETED", "이미 삭제된 게시글입니다."),
   ;
 
   private final int httpStatus;

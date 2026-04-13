@@ -145,4 +145,16 @@ public class CommunityPost {
     visibilityReason = reason;
     hiddenAt = now;
   }
+
+  public void updateContent(String content, LocalDateTime now) {
+    this.content = content;
+    this.updatedAt = now;
+  }
+
+  public void softDelete(LocalDateTime now) {
+    this.deletedAt = now;
+    this.updatedAt = now;
+    this.visibilityStatus = VisibilityStatus.HIDDEN;
+    this.visibilityReason = VisibilityReason.USER_DELETE;
+  }
 }

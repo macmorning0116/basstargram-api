@@ -15,6 +15,7 @@ import com.yechan.fishing.fishing_api.domain.community.dto.CommunityReportRespon
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityCommentRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.CreateCommunityPostRequest;
 import com.yechan.fishing.fishing_api.domain.community.dto.UpdateCommunityCommentRequest;
+import com.yechan.fishing.fishing_api.domain.community.dto.UpdateCommunityPostRequest;
 import com.yechan.fishing.fishing_api.domain.community.service.CommunityPostDefaultsService;
 import com.yechan.fishing.fishing_api.domain.community.service.CommunityService;
 import com.yechan.fishing.fishing_api.global.response.ApiResponse;
@@ -71,6 +72,21 @@ public class CommunityController {
       @Valid @RequestPart("request") CreateCommunityPostRequest request,
       @RequestPart(value = "images", required = false) List<MultipartFile> images) {
     return ApiResponse.success(communityService.createPost(user.id(), request, images));
+  }
+
+  @PutMapping("/posts/{postId}")
+  public ApiResponse<CommunityPostDetailResponse> editPost(
+      @PathVariable Long postId,
+      @CurrentUser AuthenticatedUser user,
+      @Valid @RequestBody UpdateCommunityPostRequest request) {
+    return ApiResponse.success(communityService.editPost(postId, user.id(), request.content()));
+  }
+
+  @DeleteMapping("/posts/{postId}")
+  public ApiResponse<Void> deletePost(
+      @PathVariable Long postId, @CurrentUser AuthenticatedUser user) {
+    communityService.deletePost(postId, user.id());
+    return ApiResponse.success(null);
   }
 
   @GetMapping("/posts/{postId}/comments")

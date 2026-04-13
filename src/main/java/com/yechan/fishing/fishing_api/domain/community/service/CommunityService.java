@@ -503,6 +503,35 @@ public class CommunityService {
     comment.softDelete(LocalDateTime.now());
   }
 
+  @Transactional
+  public CommunityPostDetailResponse editPost(Long postId, Long userId, String content) {
+    CommunityPost post = getPostOrThrow(postId);
+    if (!post.getUser().getId().equals(userId)) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_FORBIDDEN);
+    }
+    if (post.getDeletedAt() != null) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_DELETED);
+    }
+    post.updateContent(content.trim(), LocalDateTime.now());
+    List<CommunityPostImage> images =
+        communityPostImageRepository.findAllByPost_IdOrderBySortOrderAsc(postId);
+    boolean likedByMe = communityPostLikeRepository.existsByPost_IdAndUser_Id(postId, userId);
+    return new CommunityPostDetailResponse(
+        toPostItem(post, likedByMe, images), toImageItems(images));
+  }
+
+  @Transactional
+  public void deletePost(Long postId, Long userId) {
+    CommunityPost post = getPostOrThrow(postId);
+    if (!post.getUser().getId().equals(userId)) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_FORBIDDEN);
+    }
+    if (post.getDeletedAt() != null) {
+      throw new FishingException(ErrorCode.COMMUNITY_POST_DELETED);
+    }
+    post.softDelete(LocalDateTime.now());
+  }
+
   private User getUser(Long userId) {
     return userRepository
         .findById(userId)
