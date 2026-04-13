@@ -13,19 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/map")
 public class MapController {
 
-    private final MapService mapService;
+  private final MapService mapService;
 
-    public MapController(MapService mapService) {
-        this.mapService = mapService;
-    }
+  public MapController(MapService mapService) {
+    this.mapService = mapService;
+  }
 
-    @GetMapping("/reverse-geocode")
-    public ApiResponse<ReverseGeocodeResponse> reverseGeocode(
-            @Valid ReverseGeocodeRequest request
-            ){
-        return ApiResponse.success(
-                mapService.getAddress(request.lat(), request.lng())
-        );
-    }
-
+  @GetMapping("/reverse-geocode")
+  public ApiResponse<ReverseGeocodeResponse> reverseGeocode(@Valid ReverseGeocodeRequest request) {
+    return ApiResponse.success(mapService.getAddress(request.lat(), request.lng()));
+  }
 }

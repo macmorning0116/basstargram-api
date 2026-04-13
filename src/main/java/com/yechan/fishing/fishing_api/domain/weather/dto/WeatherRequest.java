@@ -5,15 +5,4 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
 public record WeatherRequest(
-
-        @NotNull
-        @Min(-90)
-        @Max(90)
-        Double lat,
-
-        @NotNull
-        @Min(-180)
-        @Max(180)
-        Double lng
-) {
-}
+    @NotNull @Min(-90) @Max(90) Double lat, @NotNull @Min(-180) @Max(180) Double lng) {}

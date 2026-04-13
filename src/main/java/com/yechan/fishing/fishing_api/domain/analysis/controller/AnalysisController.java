@@ -14,22 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/analysis")
 public class AnalysisController {
 
-    private final AnalysisService analysisService;
+  private final AnalysisService analysisService;
 
-    public AnalysisController(AnalysisService analysisService) {
-        this.analysisService = analysisService;
-    }
+  public AnalysisController(AnalysisService analysisService) {
+    this.analysisService = analysisService;
+  }
 
-    @PostMapping("/photo")
-    public ApiResponse<AnalysisResponse> analyze(
-            @Valid @ModelAttribute AnalysisRequest request
-            ) {
-        return ApiResponse.success(
-                analysisService.analyze(
-                        request.image(),
-                        request.lat(),
-                        request.lng()
-                )
-        );
-    }
+  @PostMapping("/photo")
+  public ApiResponse<AnalysisResponse> analyze(@Valid @ModelAttribute AnalysisRequest request) {
+    return ApiResponse.success(
+        analysisService.analyze(request.image(), request.lat(), request.lng()));
+  }
 }

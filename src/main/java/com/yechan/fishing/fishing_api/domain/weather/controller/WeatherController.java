@@ -13,16 +13,14 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/v1/weather")
 public class WeatherController {
 
-    private final WeatherService weatherService;
+  private final WeatherService weatherService;
 
-    public WeatherController(WeatherService weatherService) {
-        this.weatherService = weatherService;
-    }
+  public WeatherController(WeatherService weatherService) {
+    this.weatherService = weatherService;
+  }
 
-    @GetMapping
-    public ApiResponse<WeatherResponse> getCurrentWeather(
-            @Valid WeatherRequest request
-            ) {
-        return ApiResponse.success(weatherService.getCurrentWeather(request.lat(), request.lng()));
-    }
+  @GetMapping
+  public ApiResponse<WeatherResponse> getCurrentWeather(@Valid WeatherRequest request) {
+    return ApiResponse.success(weatherService.getCurrentWeather(request.lat(), request.lng()));
+  }
 }

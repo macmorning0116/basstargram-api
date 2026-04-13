@@ -1,11 +1,21 @@
 package com.yechan.fishing.fishing_api.domain.search.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertIterableEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.yechan.fishing.fishing_api.domain.search.dto.SearchPostsRequest;
 import com.yechan.fishing.fishing_api.domain.search.dto.SearchPostsResponse;
 import com.yechan.fishing.fishing_api.domain.search.dto.SearchRegionCountItem;
 import com.yechan.fishing.fishing_api.global.external.opensearch.OpenSearchProperties;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.util.Base64;
+import java.util.List;
 import okhttp3.mockwebserver.MockResponse;
 import okhttp3.mockwebserver.MockWebServer;
 import okhttp3.mockwebserver.RecordedRequest;
@@ -14,50 +24,42 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
 
-import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
-import java.util.Base64;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertIterableEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 class SearchServiceTest {
 
-    private MockWebServer server;
-    private ObjectMapper objectMapper;
-    private SearchService searchService;
+  private MockWebServer server;
+  private ObjectMapper objectMapper;
+  private SearchService searchService;
 
-    @BeforeEach
-    void setUp() throws Exception {
-        server = new MockWebServer();
-        server.start();
+  @BeforeEach
+  void setUp() throws Exception {
+    server = new MockWebServer();
+    server.start();
 
-        objectMapper = new ObjectMapper();
+    objectMapper = new ObjectMapper();
 
-        OpenSearchProperties props = new OpenSearchProperties();
-        props.setBaseUrl(server.url("/").toString());
-        props.setIndexName("fishing_articles_v2");
+    OpenSearchProperties props = new OpenSearchProperties();
+    props.setBaseUrl(server.url("/").toString());
+    props.setIndexName("fishing_articles_v2");
 
-        WebClient webClient = WebClient.builder()
-                .baseUrl(server.url("/").toString())
-                .defaultHeader("Content-Type", "application/json")
-                .build();
+    WebClient webClient =
+        WebClient.builder()
+            .baseUrl(server.url("/").toString())
+            .defaultHeader("Content-Type", "application/json")
+            .build();
 
-        searchService = new SearchService(webClient, props, objectMapper);
-    }
+    searchService = new SearchService(webClient, props, objectMapper);
+  }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        server.shutdown();
-    }
+  @AfterEach
+  void tearDown() throws Exception {
+    server.shutdown();
+  }
 
-    @Test
-    void searchPosts_buildsQueryAndMapsResponse() throws Exception {
-        server.enqueue(jsonResponse("""
+  @Test
+  void searchPosts_buildsQueryAndMapsResponse() throws Exception {
+    server.enqueue(
+        jsonResponse(
+            """
                 {
                   "hits": {
                     "total": { "value": 2 },
@@ -101,43 +103,80 @@ class SearchServiceTest {
                 }
                 """));
 
-        SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest(
-                        "bass",
-                        "bass_walking",
-                        "경상권",
-                        LocalDate.of(2026, 3, 28),
-                        LocalDate.of(2026, 4, 1),
-                        null,
-                        2
-                )
-        );
+    SearchPostsResponse response =
+        searchService.searchPosts(
+            new SearchPostsRequest(
+                "bass",
+                "bass_walking",
+                "경상권",
+                LocalDate.of(2026, 3, 28),
+                LocalDate.of(2026, 4, 1),
+                null,
+                2));
 
-        assertEquals(2, response.items().size());
-        assertEquals(2L, response.total());
-        assertEquals(2, response.size());
-        assertNotNull(response.nextCursor());
-        assertEquals("469820", response.items().get(0).articleId());
-        assertEquals("2026-04-01", response.items().get(0).publishedAt());
-        assertEquals(List.of("배스", "경상권", "효마지수지"), response.items().get(0).tags());
+    assertEquals(2, response.items().size());
+    assertEquals(2L, response.total());
+    assertEquals(2, response.size());
+    assertNotNull(response.nextCursor());
+    assertEquals("469820", response.items().get(0).articleId());
+    assertEquals("2026-04-01", response.items().get(0).publishedAt());
+    assertEquals(List.of("배스", "경상권", "효마지수지"), response.items().get(0).tags());
 
-        RecordedRequest request = server.takeRequest();
-        assertEquals("POST", request.getMethod());
-        assertEquals("/fishing_articles_v2/_search", request.getPath());
+    RecordedRequest request = server.takeRequest();
+    assertEquals("POST", request.getMethod());
+    assertEquals("/fishing_articles_v2/_search", request.getPath());
 
-        JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
-        assertEquals(2, body.path("size").asInt());
-        assertEquals("bass", body.path("query").path("bool").path("must").get(0).path("multi_match").path("query").asText());
-        assertEquals("bass_walking", body.path("query").path("bool").path("filter").get(1).path("term").path("board_key").asText());
-        assertEquals("경상권", body.path("query").path("bool").path("filter").get(2).path("term").path("region").asText());
-        assertEquals("2026-03-28", body.path("query").path("bool").path("filter").get(3).path("range").path("published_at").path("gte").asText());
-        assertEquals("2026-04-01", body.path("query").path("bool").path("filter").get(3).path("range").path("published_at").path("lte").asText());
-        assertEquals("published_at", body.path("sort").get(0).fieldNames().next());
-    }
+    JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
+    assertEquals(2, body.path("size").asInt());
+    assertEquals(
+        "bass",
+        body.path("query")
+            .path("bool")
+            .path("must")
+            .get(0)
+            .path("multi_match")
+            .path("query")
+            .asText());
+    assertEquals(
+        "bass_walking",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(1)
+            .path("term")
+            .path("board_key")
+            .asText());
+    assertEquals(
+        "경상권",
+        body.path("query").path("bool").path("filter").get(2).path("term").path("region").asText());
+    assertEquals(
+        "2026-03-28",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(3)
+            .path("range")
+            .path("published_at")
+            .path("gte")
+            .asText());
+    assertEquals(
+        "2026-04-01",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(3)
+            .path("range")
+            .path("published_at")
+            .path("lte")
+            .asText());
+    assertEquals("published_at", body.path("sort").get(0).fieldNames().next());
+  }
 
-    @Test
-    void searchPosts_whenCursorExists_sendsSearchAfterAndFallsBackToDateText() throws Exception {
-        server.enqueue(jsonResponse("""
+  @Test
+  void searchPosts_whenCursorExists_sendsSearchAfterAndFallsBackToDateText() throws Exception {
+    server.enqueue(
+        jsonResponse(
+            """
                 {
                   "hits": {
                     "total": { "value": 1 },
@@ -161,45 +200,48 @@ class SearchServiceTest {
                 }
                 """));
 
-        String cursor = Base64.getUrlEncoder()
-                .encodeToString("[\"2026-04-01\",\"469820\"]".getBytes(StandardCharsets.UTF_8));
+    String cursor =
+        Base64.getUrlEncoder()
+            .encodeToString("[\"2026-04-01\",\"469820\"]".getBytes(StandardCharsets.UTF_8));
 
-        SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest(null, null, null, null, null, cursor, 10)
-        );
+    SearchPostsResponse response =
+        searchService.searchPosts(new SearchPostsRequest(null, null, null, null, null, cursor, 10));
 
-        assertEquals(1, response.items().size());
-        assertEquals("2026-04-01", response.items().get(0).publishedAt());
-        assertEquals(List.of("배스"), response.items().get(0).tags());
-        assertNull(response.nextCursor());
+    assertEquals(1, response.items().size());
+    assertEquals("2026-04-01", response.items().get(0).publishedAt());
+    assertEquals(List.of("배스"), response.items().get(0).tags());
+    assertNull(response.nextCursor());
 
-        RecordedRequest request = server.takeRequest();
-        JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
-        assertTrue(body.has("search_after"));
-        assertEquals("2026-04-01", body.path("search_after").get(0).asText());
-        assertEquals("469820", body.path("search_after").get(1).asText());
-        assertEquals(1, body.path("query").path("bool").path("filter").size());
-        assertTrue(body.path("query").path("bool").path("must").isMissingNode()
-                || body.path("query").path("bool").path("must").isEmpty());
-    }
+    RecordedRequest request = server.takeRequest();
+    JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
+    assertTrue(body.has("search_after"));
+    assertEquals("2026-04-01", body.path("search_after").get(0).asText());
+    assertEquals("469820", body.path("search_after").get(1).asText());
+    assertEquals(1, body.path("query").path("bool").path("filter").size());
+    assertTrue(
+        body.path("query").path("bool").path("must").isMissingNode()
+            || body.path("query").path("bool").path("must").isEmpty());
+  }
 
-    @Test
-    void searchPosts_whenResponseBodyIsEmpty_returnsEmptyResponse() {
-        server.enqueue(new MockResponse().setResponseCode(200).setBody(""));
+  @Test
+  void searchPosts_whenResponseBodyIsEmpty_returnsEmptyResponse() {
+    server.enqueue(new MockResponse().setResponseCode(200).setBody(""));
 
-        SearchPostsResponse response = searchService.searchPosts(
-                new SearchPostsRequest(null, null, null, null, null, "not-a-valid-cursor", null)
-        );
+    SearchPostsResponse response =
+        searchService.searchPosts(
+            new SearchPostsRequest(null, null, null, null, null, "not-a-valid-cursor", null));
 
-        assertTrue(response.items().isEmpty());
-        assertEquals(0L, response.total());
-        assertEquals(20, response.size());
-        assertNull(response.nextCursor());
-    }
+    assertTrue(response.items().isEmpty());
+    assertEquals(0L, response.total());
+    assertEquals(20, response.size());
+    assertNull(response.nextCursor());
+  }
 
-    @Test
-    void getRegionCounts_returnsSortedBuckets() throws Exception {
-        server.enqueue(jsonResponse("""
+  @Test
+  void getRegionCounts_returnsSortedBuckets() throws Exception {
+    server.enqueue(
+        jsonResponse(
+            """
                 {
                   "aggregations": {
                     "regions": {
@@ -213,34 +255,64 @@ class SearchServiceTest {
                 }
                 """));
 
-        List<SearchRegionCountItem> response = searchService.getRegionCounts(
-                LocalDate.of(2026, 3, 1),
-                LocalDate.of(2026, 3, 31)
-        );
+    List<SearchRegionCountItem> response =
+        searchService.getRegionCounts(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31));
 
-        assertIterableEquals(
-                List.of(
-                        new SearchRegionCountItem("서울/경기권", 128),
-                        new SearchRegionCountItem("충청권", 84),
-                        new SearchRegionCountItem("경상권", 63)
-                ),
-                response
-        );
+    assertIterableEquals(
+        List.of(
+            new SearchRegionCountItem("서울/경기권", 128),
+            new SearchRegionCountItem("충청권", 84),
+            new SearchRegionCountItem("경상권", 63)),
+        response);
 
-        RecordedRequest request = server.takeRequest();
-        JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
-        assertEquals(0, body.path("size").asInt());
-        assertEquals("ok", body.path("query").path("bool").path("filter").get(0).path("term").path("access_status").asText());
-        assertEquals("region", body.path("query").path("bool").path("filter").get(1).path("exists").path("field").asText());
-        assertEquals("2026-03-01", body.path("query").path("bool").path("filter").get(2).path("range").path("published_at").path("gte").asText());
-        assertEquals("2026-03-31", body.path("query").path("bool").path("filter").get(2).path("range").path("published_at").path("lte").asText());
-        assertEquals("region", body.path("aggs").path("regions").path("terms").path("field").asText());
-    }
+    RecordedRequest request = server.takeRequest();
+    JsonNode body = objectMapper.readTree(request.getBody().readUtf8());
+    assertEquals(0, body.path("size").asInt());
+    assertEquals(
+        "ok",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(0)
+            .path("term")
+            .path("access_status")
+            .asText());
+    assertEquals(
+        "region",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(1)
+            .path("exists")
+            .path("field")
+            .asText());
+    assertEquals(
+        "2026-03-01",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(2)
+            .path("range")
+            .path("published_at")
+            .path("gte")
+            .asText());
+    assertEquals(
+        "2026-03-31",
+        body.path("query")
+            .path("bool")
+            .path("filter")
+            .get(2)
+            .path("range")
+            .path("published_at")
+            .path("lte")
+            .asText());
+    assertEquals("region", body.path("aggs").path("regions").path("terms").path("field").asText());
+  }
 
-    private MockResponse jsonResponse(String body) {
-        return new MockResponse()
-                .setResponseCode(200)
-                .setHeader("Content-Type", "application/json")
-                .setBody(body);
-    }
+  private MockResponse jsonResponse(String body) {
+    return new MockResponse()
+        .setResponseCode(200)
+        .setHeader("Content-Type", "application/json")
+        .setBody(body);
+  }
 }
