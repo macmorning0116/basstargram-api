@@ -62,11 +62,6 @@ public class UserController {
       @Valid @RequestBody CompleteProfileRequest request,
       HttpServletRequest httpServletRequest,
       HttpServletResponse httpServletResponse) {
-    System.out.println(
-        "[DEBUG] completeProfile - user="
-            + user
-            + " id="
-            + (user != null ? user.id() : "NULL_USER"));
     AuthSessionResult result =
         userService.completeProfile(
             user.id(), request.nickname(), httpServletRequest.getHeader("User-Agent"));
