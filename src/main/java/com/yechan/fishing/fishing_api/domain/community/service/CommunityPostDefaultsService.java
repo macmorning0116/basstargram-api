@@ -4,6 +4,7 @@ import com.drew.imaging.ImageMetadataReader;
 import com.drew.imaging.ImageProcessingException;
 import com.drew.lang.GeoLocation;
 import com.drew.metadata.Metadata;
+import com.drew.metadata.exif.ExifIFD0Directory;
 import com.drew.metadata.exif.ExifSubIFDDirectory;
 import com.drew.metadata.exif.GpsDirectory;
 import com.yechan.fishing.fishing_api.domain.community.dto.CommunityPostDefaultsResponse;
@@ -94,21 +95,29 @@ public class CommunityPostDefaultsService {
   }
 
   private LocalDateTime extractCapturedAt(Metadata metadata) {
-    ExifSubIFDDirectory directory = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
-    if (directory == null) {
-      return null;
+    ExifSubIFDDirectory subIfd = metadata.getFirstDirectoryOfType(ExifSubIFDDirectory.class);
+
+    Date date = null;
+    if (subIfd != null) {
+      date =
+          firstNonNull(
+              subIfd.getDateOriginal(),
+              subIfd.getDateDigitized(),
+              subIfd.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL),
+              subIfd.getDate(ExifSubIFDDirectory.TAG_DATETIME_DIGITIZED));
     }
 
-    Date date =
-        firstNonNull(
-            directory.getDateOriginal(),
-            directory.getDateDigitized(),
-            directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_ORIGINAL),
-            directory.getDate(ExifSubIFDDirectory.TAG_DATETIME_DIGITIZED));
+    // Android fallback: ModifyDate (DateTime in IFD0)
+    if (date == null) {
+      ExifIFD0Directory ifd0 = metadata.getFirstDirectoryOfType(ExifIFD0Directory.class);
+      if (ifd0 != null) {
+        date = ifd0.getDate(ExifIFD0Directory.TAG_DATETIME);
+      }
+    }
+
     if (date == null) {
       return null;
     }
-
     return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
   }
 
