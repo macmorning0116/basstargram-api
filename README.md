@@ -3,7 +3,7 @@
 > 사진 기반 낚시 포인트 분석, 위치/날씨 정보 제공, 조행 데이터 검색, 커뮤니티 피드를 담당하는 API 서버입니다.  
 > React 프론트엔드와 연동되며, AWS EC2 환경에서 Docker 기반으로 운영합니다.
 
-<img width="180" alt="검색화면" src="https://github.com/user-attachments/assets/cd1c3d1a-d465-46ab-8c90-45b78b3bf7bc" />
+<img width="180" alt="검색화면" src="https://github.com/user-attachments/assets/2dc0dd60-0ceb-41aa-9912-fc787474a831" />
 <img width="180" alt="분석화면" src="https://github.com/user-attachments/assets/5f437d21-5164-4863-ad19-71abd4d38ffd" />
 <img width="180" alt="지도 화면" src="https://github.com/user-attachments/assets/b7ea133f-161e-46e7-ab4f-c649edb25427" />
 <img width="180" alt="피드화면" src="https://github.com/user-attachments/assets/6d159611-6f7c-41b1-8227-d531303de3cf" />
