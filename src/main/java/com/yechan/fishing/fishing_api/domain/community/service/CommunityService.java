@@ -585,11 +585,8 @@ public class CommunityService {
   }
 
   @Transactional(readOnly = true)
-  public List<MapPostItem> getMapPosts(
-      double south, double west, double north, double east, int limit) {
-    int safeLimit = Math.min(Math.max(limit, 1), 200);
-    List<Object[]> rows =
-        communityPostRepository.findPostsInBounds(west, south, east, north, safeLimit);
+  public List<MapPostItem> getAllMapPosts() {
+    List<Object[]> rows = communityPostRepository.findAllVisibleWithLocation();
     return rows.stream()
         .map(
             row ->

@@ -79,17 +79,9 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, Lo
               + "FROM community_posts p "
               + "WHERE p.visibility_status = 'VISIBLE' "
               + "AND p.location IS NOT NULL "
-              + "AND ST_Within(p.location::geometry, ST_MakeEnvelope(:west, :south, :east, :north,"
-              + " 4326)) "
-              + "ORDER BY p.id DESC "
-              + "LIMIT :limit",
+              + "ORDER BY p.id DESC",
       nativeQuery = true)
-  List<Object[]> findPostsInBounds(
-      @Param("west") double west,
-      @Param("south") double south,
-      @Param("east") double east,
-      @Param("north") double north,
-      @Param("limit") int limit);
+  List<Object[]> findAllVisibleWithLocation();
 
   @Query(
       "SELECT p.region, COUNT(p) FROM CommunityPost p WHERE p.visibilityStatus"
