@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.yechan.fishing.fishing_api.domain.search.dto.SearchRegionCountItem;
 import com.yechan.fishing.fishing_api.domain.search.dto.SearchResultItem;
 import com.yechan.fishing.fishing_api.domain.search.dto.UnifiedSearchResponse;
+import com.yechan.fishing.fishing_api.domain.search.service.CommunitySearchService;
 import com.yechan.fishing.fishing_api.domain.search.service.SearchService;
 import java.time.LocalDate;
 import java.util.List;
@@ -24,6 +25,8 @@ class SearchControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockBean private SearchService searchService;
+
+  @MockBean private CommunitySearchService communitySearchService;
 
   @Test
   void searchPosts_returnsWrappedSuccessResponse() throws Exception {
