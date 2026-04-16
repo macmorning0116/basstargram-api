@@ -89,7 +89,7 @@ public class User {
     user.providerUserId = providerUserId;
     user.email = email;
     user.nickname = nickname;
-    user.profileImageUrl = profileImageUrl;
+    user.profileImageUrl = null;
     user.status = UserStatus.PENDING;
     user.role = UserRole.USER;
     user.reportCount = 0;
@@ -101,12 +101,7 @@ public class User {
 
   public void updateSocialProfile(String email, String socialProfileImageUrl, LocalDateTime now) {
     this.email = email;
-    // Keep custom-uploaded profile image (S3 or local uploads)
-    if (this.profileImageUrl == null
-        || (!this.profileImageUrl.startsWith("/uploads/")
-            && !this.profileImageUrl.contains("s3.ap-northeast-2.amazonaws.com"))) {
-      this.profileImageUrl = socialProfileImageUrl;
-    }
+    // 소셜 프로필 사진은 사용하지 않음 — 커스텀 업로드만 사용
     this.lastLoginAt = now;
     this.updatedAt = now;
   }
