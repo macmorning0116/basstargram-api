@@ -22,7 +22,9 @@ import com.yechan.fishing.fishing_api.domain.community.service.CommunityPostDefa
 import com.yechan.fishing.fishing_api.domain.community.service.CommunityService;
 import com.yechan.fishing.fishing_api.global.response.ApiResponse;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
 import java.util.List;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +33,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -56,8 +59,12 @@ public class CommunityController {
   }
 
   @GetMapping("/posts/region-counts")
-  public ApiResponse<List<CommunityRegionCountItem>> getRegionCounts() {
-    return ApiResponse.success(communityService.getRegionCounts());
+  public ApiResponse<List<CommunityRegionCountItem>> getRegionCounts(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate fromDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate untilDate) {
+    return ApiResponse.success(communityService.getRegionCounts(fromDate, untilDate));
   }
 
   @GetMapping("/posts")

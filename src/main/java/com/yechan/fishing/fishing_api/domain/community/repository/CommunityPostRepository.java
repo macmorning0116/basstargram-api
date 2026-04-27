@@ -2,6 +2,7 @@ package com.yechan.fishing.fishing_api.domain.community.repository;
 
 import com.yechan.fishing.fishing_api.domain.community.entity.CommunityPost;
 import com.yechan.fishing.fishing_api.domain.community.entity.enums.VisibilityStatus;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Pageable;
@@ -84,7 +85,14 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, Lo
   List<Object[]> findAllVisibleWithLocation();
 
   @Query(
-      "SELECT p.region, COUNT(p) FROM CommunityPost p WHERE p.visibilityStatus"
-          + " = :status AND p.region IS NOT NULL GROUP BY p.region")
-  List<Object[]> countByRegion(@Param("status") VisibilityStatus status);
+      "SELECT p.region, COUNT(p) FROM CommunityPost p"
+          + " WHERE p.visibilityStatus = :status"
+          + " AND p.region IS NOT NULL"
+          + " AND (:fromDateTime IS NULL OR p.fishedAt >= :fromDateTime)"
+          + " AND (:untilDateTime IS NULL OR p.fishedAt < :untilDateTime)"
+          + " GROUP BY p.region")
+  List<Object[]> countByRegion(
+      @Param("status") VisibilityStatus status,
+      @Param("fromDateTime") LocalDateTime fromDateTime,
+      @Param("untilDateTime") LocalDateTime untilDateTime);
 }
