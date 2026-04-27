@@ -38,6 +38,7 @@ import com.yechan.fishing.fishing_api.domain.community.storage.StoredCommunityIm
 import com.yechan.fishing.fishing_api.domain.search.service.CommunitySearchService;
 import com.yechan.fishing.fishing_api.global.exception.ErrorCode;
 import com.yechan.fishing.fishing_api.global.exception.FishingException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -613,8 +614,12 @@ public class CommunityService {
   }
 
   @Transactional(readOnly = true)
-  public List<CommunityRegionCountItem> getRegionCounts() {
-    List<Object[]> rows = communityPostRepository.countByRegion(VisibilityStatus.VISIBLE);
+  public List<CommunityRegionCountItem> getRegionCounts(LocalDate fromDate, LocalDate untilDate) {
+    LocalDateTime fromDateTime = fromDate != null ? fromDate.atStartOfDay() : null;
+    LocalDateTime untilDateTime = untilDate != null ? untilDate.plusDays(1).atStartOfDay() : null;
+    List<Object[]> rows =
+        communityPostRepository.countByRegion(
+            VisibilityStatus.VISIBLE, fromDateTime, untilDateTime);
     return rows.stream()
         .map(row -> new CommunityRegionCountItem((String) row[0], ((Number) row[1]).longValue()))
         .toList();
