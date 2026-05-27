@@ -6,9 +6,11 @@ import static org.mockito.BDDMockito.then;
 
 import com.yechan.fishing.fishing_api.domain.analysis.dto.AnalysisPoint;
 import com.yechan.fishing.fishing_api.domain.analysis.dto.AnalysisResponse;
+import com.yechan.fishing.fishing_api.domain.analysis.dto.AnalysisUsageResponse;
 import com.yechan.fishing.fishing_api.domain.analysis.dto.GptWeatherContext;
 import com.yechan.fishing.fishing_api.global.external.gpt.GptClient;
 import com.yechan.fishing.fishing_api.global.external.weather.WeatherClient;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +25,8 @@ class AnalysisServiceTest {
   @Mock private WeatherClient weatherClient;
 
   @Mock private GptClient gptClient;
+
+  @Mock private AnalysisUsageService analysisUsageService;
 
   @InjectMocks private AnalysisService analysisService;
 
@@ -44,10 +48,22 @@ class AnalysisServiceTest {
     given(weatherClient.getGptWeatherContext(37.5, 127.0)).willReturn(weather);
     given(gptClient.analyze(image, weather)).willReturn(response);
 
-    AnalysisResponse result = analysisService.analyze(image, 37.5, 127.0);
+    AnalysisResponse result = analysisService.analyze(1L, image, 37.5, 127.0);
 
     assertSame(response, result);
+    then(analysisUsageService).should().consumeDailyUsage(1L);
     then(weatherClient).should().getGptWeatherContext(37.5, 127.0);
     then(gptClient).should().analyze(image, weather);
+  }
+
+  @Test
+  void getDailyUsage_delegatesToUsageService() {
+    AnalysisUsageResponse response = new AnalysisUsageResponse(LocalDate.of(2026, 5, 27), 5, 1, 4);
+    given(analysisUsageService.getDailyUsage(1L)).willReturn(response);
+
+    AnalysisUsageResponse result = analysisService.getDailyUsage(1L);
+
+    assertSame(response, result);
+    then(analysisUsageService).should().getDailyUsage(1L);
   }
 }

@@ -36,6 +36,8 @@ public enum ErrorCode {
   WEATHER_API_INVALID_DATA(502, "WEATHER_API_INVALID_DATA", "날씨DATA가 올바르지 않습니다."),
 
   // GPT
+  ANALYSIS_DAILY_LIMIT_EXCEEDED(
+      429, "ANALYSIS_DAILY_LIMIT_EXCEEDED", "AI 사진 분석은 하루 5회까지 사용할 수 있습니다."),
   GPT_API_ERROR(502, "GPT_API_ERROR", "GPT 응답을 불러오는 중 에러가 발생했습니다."),
   GPT_RESPONSE_PARSE_ERROR(500, "GPT_RESPONSE_PARSE_ERROR", "GPT 응답을 파싱하는 과정에서 에러가 발생했습니다."),
 
